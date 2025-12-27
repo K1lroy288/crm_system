@@ -16,6 +16,8 @@ WORKDIR /root/
 
 COPY --from=builder /api_gateway/api-gateway .
 
+COPY --from=builder /api_gateway/templates ./templates/
+
 COPY .env .
 
 EXPOSE 8000

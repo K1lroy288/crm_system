@@ -14,14 +14,14 @@ func main() {
 
 	r := gin.Default()
 
+	r.LoadHTMLGlob("templates/*.html")
+
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "Api Gateway is up!")
 	})
 
-	r.LoadHTMLGlob("templates/")
-
-	r.GET("/health", func(ctx *gin.Context) {
-		ctx.String(http.StatusOK, "Api Gateway is up!")
+	r.GET("/", func(ctx *gin.Context) {
+		ctx.HTML(http.StatusOK, "authentication.html", nil)
 	})
 
 	api := r.Group("/auth")

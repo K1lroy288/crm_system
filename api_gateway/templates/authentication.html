@@ -428,25 +428,45 @@
                     })
                 });
                 
-                const data = await response.json();
-                
+                // Для логина ожидаем JSON с токеном
                 if (response.ok) {
-                    showMessage(loginMessage, '✅ Успешный вход!', false);
-                    // Сохраняем токен (если он есть в ответе)
-                    if (data.token) {
-                        localStorage.setItem('auth_token', data.token);
-                        console.log('Токен сохранен');
+                    try {
+                        const data = await response.json();
+                        showMessage(loginMessage, '✅ Успешный вход!', false);
+                        
+                        if (data.token) {
+                            localStorage.setItem('auth_token', data.token);
+                            console.log('Токен сохранен:', data.token.substring(0, 20) + '...');
+                        }
+                        
+                        // Редирект или обновление страницы через 2 секунды
+                        setTimeout(() => {
+                            window.location.href = '/dashboard'; // Замените на ваш URL
+                        }, 2000);
+                    } catch (jsonError) {
+                        console.warn('Ошибка парсинга JSON при логине:', jsonError);
+                        if (response.status === 200) {
+                            showMessage(loginMessage, '✅ Успешный вход! (ответ без JSON)', false);
+                        } else {
+                            showMessage(loginMessage, '❌ Ошибка сервера: неверный формат ответа', true);
+                        }
                     }
-                    
-                    // Редирект или обновление страницы через 2 секунды
-                    setTimeout(() => {
-                        window.location.href = '/dashboard'; // Замените на ваш URL
-                    }, 2000);
                 } else {
-                    showMessage(loginMessage, `❌ Ошибка: ${data.error || 'Неверные учетные данные'}`, true);
+                    // Пробуем получить текст ошибки
+                    let errorText = 'Неверные учетные данные';
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorText = errorData.error;
+                        }
+                    } catch {
+                        // Если не JSON, используем статус
+                        errorText = `Ошибка ${response.status}`;
+                    }
+                    showMessage(loginMessage, `❌ ${errorText}`, true);
                 }
             } catch (error) {
-                console.error('Ошибка:', error);
+                console.error('Сетевая ошибка:', error);
                 showMessage(loginMessage, '❌ Ошибка сети. Проверьте подключение к серверу', true);
             } finally {
                 // Скрыть лоадер
@@ -455,7 +475,7 @@
             }
         });
 
-        // Обработка регистрации
+        // Обработка регистрации (исправленная версия без ожидания JSON)
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -486,6 +506,8 @@
             registerBtn.disabled = true;
             
             try {
+                console.log('Отправка запроса на регистрацию пользователя:', username);
+                
                 const response = await fetch(REGISTER_ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -497,9 +519,15 @@
                     })
                 });
                 
-                const data = await response.json();
+                console.log('Получен ответ от сервера:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
                 
-                if (response.ok) {
+                // Для регистрации НЕ пытаемся читать JSON, если статус 201 (Created)
+                if (response.status === 201) {
+                    // Успешная регистрация без тела ответа
                     showMessage(registerMessage, '✅ Регистрация успешна! Теперь вы можете войти.', false);
                     
                     // Очистка формы
@@ -511,11 +539,41 @@
                         // Автозаполнение имени пользователя в форме логина
                         document.getElementById('login-username').value = username;
                     }, 3000);
+                } else if (response.status === 409) {
+                    // Конфликт - пользователь уже существует
+                    showMessage(registerMessage, '❌ Пользователь с таким именем уже существует', true);
+                } else if (response.status === 400) {
+                    // Ошибка валидации
+                    try {
+                        const errorData = await response.json();
+                        showMessage(registerMessage, `❌ ${errorData.error || 'Ошибка валидации'}`, true);
+                    } catch {
+                        showMessage(registerMessage, '❌ Ошибка валидации', true);
+                    }
+                } else if (response.status === 500) {
+                    // Внутренняя ошибка сервера
+                    try {
+                        const errorData = await response.json();
+                        showMessage(registerMessage, `❌ Серверная ошибка: ${errorData.error || 'Попробуйте позже'}`, true);
+                    } catch {
+                        showMessage(registerMessage, '❌ Внутренняя ошибка сервера', true);
+                    }
                 } else {
-                    showMessage(registerMessage, `❌ Ошибка: ${data.error || 'Ошибка регистрации'}`, true);
+                    // Другие ошибки
+                    let errorMessage = `Ошибка ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                    } catch {
+                        // Не JSON ответ
+                    }
+                    showMessage(registerMessage, `❌ ${errorMessage}`, true);
                 }
+                
             } catch (error) {
-                console.error('Ошибка:', error);
+                console.error('Сетевая ошибка при регистрации:', error);
                 showMessage(registerMessage, '❌ Ошибка сети. Проверьте подключение к серверу', true);
             } finally {
                 // Скрыть лоадер
@@ -535,6 +593,8 @@
 
         // Добавляем кнопку для демо данных (только для разработки)
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Страница загружена. API Base URL:', API_BASE_URL);
+            
             // Заполняем демо данные при загрузке (опционально)
             // fillDemoCredentials();
             
@@ -561,12 +621,9 @@
             // Проверяем наличие токена при загрузке
             const token = localStorage.getItem('auth_token');
             if (token) {
-                console.log('Найден сохраненный токен');
-                // Можно автоматически перенаправить или показать сообщение
-            }
-            
-            // Добавляем возможность выхода (для демонстрации)
-            if (localStorage.getItem('auth_token')) {
+                console.log('Найден сохраненный токен, длина:', token.length);
+                
+                // Показываем кнопку выхода
                 const logoutBtn = document.createElement('button');
                 logoutBtn.textContent = 'Выйти';
                 logoutBtn.style.cssText = `
@@ -580,6 +637,7 @@
                     border-radius: 5px;
                     cursor: pointer;
                     z-index: 1000;
+                    font-size: 14px;
                 `;
                 logoutBtn.onclick = function() {
                     localStorage.removeItem('auth_token');
@@ -587,6 +645,26 @@
                     location.reload();
                 };
                 document.body.appendChild(logoutBtn);
+                
+                // Также можно показать сообщение
+                const tokenMessage = document.createElement('div');
+                tokenMessage.textContent = 'Вы уже авторизованы';
+                tokenMessage.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    background: #d4edda;
+                    color: #155724;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    z-index: 1000;
+                `;
+                document.body.appendChild(tokenMessage);
+                
+                setTimeout(() => {
+                    tokenMessage.remove();
+                }, 3000);
             }
         });
 
@@ -617,6 +695,23 @@
                 this.style.borderColor = '#e1e5e9';
             }
         });
+        
+        // Функция для проверки доступности сервера (опционально)
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    console.log('Сервер доступен');
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Сервер недоступен:', error);
+                return false;
+            }
+        }
+        
+        // Проверяем сервер при загрузке
+        setTimeout(checkServerHealth, 1000);
     </script>
 </body>
 </html>

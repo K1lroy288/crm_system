@@ -10,7 +10,6 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"gorm.io/gorm"
 )
 
 type Migrator struct {
@@ -47,8 +46,8 @@ func (m *Migrator) applyMigrations(db *sql.DB) error {
 	return nil
 }
 
-func (m *Migrator) ApplyMigrationsWithGORM(gormDB *gorm.DB) error {
-	sqlDB, err := gormDB.DB()
+func (m *Migrator) ApplyMigrationsWithGORM(dsn string) error {
+	sqlDB, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return fmt.Errorf("unable to get sql.DB from gorm: %v", err)
 	}

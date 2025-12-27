@@ -26,16 +26,16 @@ func main() {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port)
 
+	migrator := repository.MustGetNewMigrator(MigrationsFS, migrationsDir)
+
+	err := migrator.ApplyMigrationsWithGORM(dsn)
+	if err != nil {
+		log.Fatalf("Failed to apply migrations: %v", err)
+	}
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	migrator := repository.MustGetNewMigrator(MigrationsFS, migrationsDir)
-
-	err = migrator.ApplyMigrationsWithGORM(db)
-	if err != nil {
-		log.Fatalf("Failed to apply migrations: %v", err)
 	}
 
 	repo := repository.NewUserRepository(db)
@@ -44,14 +44,18 @@ func main() {
 
 	r := gin.Default()
 
-	api := r.Group("/user")
+	r.GET("/health", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "User service is up!")
+	})
+
+	api := r.Group("/auth")
 	{
-		api.GET("/health", func(ctx *gin.Context) {
-			ctx.String(http.StatusOK, "User service is up!")
-		})
 
 		api.POST("/login", handler.GetUserByUsername)
 
 		api.POST("/register", handler.CreateUser)
 	}
+
+	addr := fmt.Sprintf(":%s", cfg.Port)
+	r.Run(addr)
 }
