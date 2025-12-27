@@ -18,6 +18,12 @@ func main() {
 		ctx.String(http.StatusOK, "Api Gateway is up!")
 	})
 
+	r.LoadHTMLGlob("templates/")
+
+	r.GET("/health", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "Api Gateway is up!")
+	})
+
 	api := r.Group("/auth")
 	{
 		api.POST("/register", handler.ReverseProxy)
