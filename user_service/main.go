@@ -13,9 +13,9 @@ import (
 	"gorm.io/gorm"
 )
 
-const migrationsDir = "db/migrations"
+const migrationsDir = "migrations"
 
-//go:embed db/migrations/*.sql
+//go:embed migrations/*.sql
 var MigrationsFS embed.FS
 
 func main() {
