@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"user-service/config"
+	"user-service/handler"
 	"user-service/repository"
+	"user-service/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
@@ -36,6 +38,10 @@ func main() {
 		log.Fatalf("Failed to apply migrations: %v", err)
 	}
 
+	repo := repository.NewUserRepository(db)
+	service := service.NewUserService(repo)
+	handler := handler.NewUserHandler(service)
+
 	r := gin.Default()
 
 	api := r.Group("/user")
@@ -43,5 +49,9 @@ func main() {
 		api.GET("/health", func(ctx *gin.Context) {
 			ctx.String(http.StatusOK, "User service is up!")
 		})
+
+		api.POST("/login", handler.GetUserByUsername)
+
+		api.POST("/register", handler.CreateUser)
 	}
 }
