@@ -1,0 +1,54 @@
+services:
+  postgres-user:
+    image: postgres:17
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=user_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - user_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  user-service:
+    image: user-service:latest
+    build:
+      context: ./user_service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api-gateway:
+    image: api-gateway:latest
+    build:
+      context: ./api_gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3425:3425"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3425/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart:
+      unless-stopped
+
+volumes:
+  user_data:

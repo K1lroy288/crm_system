@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авторизация и Регистрация</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        
+        h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 24px;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .switch-btn {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+            margin-top: 20px;
+        }
+        
+        .switch-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+            font-weight: 500;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .form-section {
+            display: none;
+        }
+        
+        .form-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .password-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .button-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .card {
+                padding: 30px 20px;
+            }
+        }
+        
+        .cards-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .cards-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Аутентификация</h1>
+        
+        <div class="cards-container">
+            <!-- Карточка логина -->
+            <div class="card">
+                <h2>Вход в систему</h2>
+                <div id="login-section" class="form-section active">
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Имя пользователя</label>
+                            <input 
+                                type="text" 
+                                id="login-username" 
+                                name="username" 
+                                placeholder="Введите ваш username" 
+                                required
+                            >
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="login-password">Пароль</label>
+                            <input 
+                                type="password" 
+                                id="login-password" 
+                                name="password" 
+                                placeholder="Введите ваш пароль" 
+                                required
+                            >
+                        </div>
+                        
+                        <button type="submit" id="login-btn">
+                            <div class="button-content">
+                                <span>Войти</span>
+                                <div class="loader" id="login-loader"></div>
+                            </div>
+                        </button>
+                        
+                        <button type="button" class="switch-btn" onclick="showRegister()">
+                            Нет аккаунта? Зарегистрироваться
+                        </button>
+                    </form>
+                    
+                    <div id="login-message" class="message"></div>
+                </div>
+            </div>
+            
+            <!-- Карточка регистрации -->
+            <div class="card">
+                <h2>Регистрация</h2>
+                <div id="register-section" class="form-section">
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="register-username">Имя пользователя</label>
+                            <input 
+                                type="text" 
+                                id="register-username" 
+                                name="username" 
+                                placeholder="Придумайте username" 
+                                required
+                            >
+                            <div class="password-hint">Только латинские буквы и цифры, 3-50 символов</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="register-password">Пароль</label>
+                            <input 
+                                type="password" 
+                                id="register-password" 
+                                name="password" 
+                                placeholder="Придумайте пароль" 
+                                required
+                            >
+                            <div class="password-hint">Минимум 8 символов</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirm-password">Подтверждение пароля</label>
+                            <input 
+                                type="password" 
+                                id="confirm-password" 
+                                name="confirmPassword" 
+                                placeholder="Повторите пароль" 
+                                required
+                            >
+                        </div>
+                        
+                        <button type="submit" id="register-btn">
+                            <div class="button-content">
+                                <span>Зарегистрироваться</span>
+                                <div class="loader" id="register-loader"></div>
+                            </div>
+                        </button>
+                        
+                        <button type="button" class="switch-btn" onclick="showLogin()">
+                            Уже есть аккаунт? Войти
+                        </button>
+                    </form>
+                    
+                    <div id="register-message" class="message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация API
+        const API_BASE_URL = 'http://localhost:3425';
+        const LOGIN_ENDPOINT = `${API_BASE_URL}/auth/login`;
+        const REGISTER_ENDPOINT = `${API_BASE_URL}/auth/register`;
+
+        // DOM элементы
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const loginSection = document.getElementById('login-section');
+        const registerSection = document.getElementById('register-section');
+        const loginMessage = document.getElementById('login-message');
+        const registerMessage = document.getElementById('register-message');
+        const loginLoader = document.getElementById('login-loader');
+        const registerLoader = document.getElementById('register-loader');
+        const loginBtn = document.getElementById('login-btn');
+        const registerBtn = document.getElementById('register-btn');
+
+        // Переключение между формами
+        function showRegister() {
+            loginSection.classList.remove('active');
+            registerSection.classList.add('active');
+            clearMessages();
+        }
+
+        function showLogin() {
+            registerSection.classList.remove('active');
+            loginSection.classList.add('active');
+            clearMessages();
+        }
+
+        // Очистка сообщений
+        function clearMessages() {
+            loginMessage.className = 'message';
+            loginMessage.textContent = '';
+            loginMessage.style.display = 'none';
+            
+            registerMessage.className = 'message';
+            registerMessage.textContent = '';
+            registerMessage.style.display = 'none';
+        }
+
+        // Показать сообщение
+        function showMessage(element, message, isError = false) {
+            element.textContent = message;
+            element.className = isError ? 'message error' : 'message success';
+            element.style.display = 'block';
+            
+            // Автоматически скрыть успешное сообщение через 5 секунд
+            if (!isError) {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Валидация пароля
+        function validatePassword(password) {
+            if (password.length < 8) {
+                return 'Пароль должен содержать минимум 8 символов';
+            }
+            return null;
+        }
+
+        // Валидация username
+        function validateUsername(username) {
+            const usernameRegex = /^[a-zA-Z0-9]{3,50}$/;
+            if (!usernameRegex.test(username)) {
+                return 'Имя пользователя должно содержать только латинские буквы и цифры (3-50 символов)';
+            }
+            return null;
+        }
+
+        // Обработка логина
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            
+            // Валидация
+            const usernameError = validateUsername(username);
+            if (usernameError) {
+                showMessage(loginMessage, usernameError, true);
+                return;
+            }
+            
+            if (!password) {
+                showMessage(loginMessage, 'Введите пароль', true);
+                return;
+            }
+            
+            // Показать лоадер
+            loginLoader.style.display = 'block';
+            loginBtn.disabled = true;
+            
+            try {
+                const response = await fetch(LOGIN_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                // Для логина ожидаем JSON с токеном
+                if (response.ok) {
+                    try {
+                        const data = await response.json();
+                        showMessage(loginMessage, '✅ Успешный вход!', false);
+                        
+                        if (data.token) {
+                            localStorage.setItem('auth_token', data.token);
+                            console.log('Токен сохранен:', data.token.substring(0, 20) + '...');
+                        }
+                        
+                        // Редирект или обновление страницы через 2 секунды
+                        setTimeout(() => {
+                            window.location.href = '/dashboard'; // Замените на ваш URL
+                        }, 2000);
+                    } catch (jsonError) {
+                        console.warn('Ошибка парсинга JSON при логине:', jsonError);
+                        if (response.status === 200) {
+                            showMessage(loginMessage, '✅ Успешный вход! (ответ без JSON)', false);
+                        } else {
+                            showMessage(loginMessage, '❌ Ошибка сервера: неверный формат ответа', true);
+                        }
+                    }
+                } else {
+                    // Пробуем получить текст ошибки
+                    let errorText = 'Неверные учетные данные';
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorText = errorData.error;
+                        }
+                    } catch {
+                        // Если не JSON, используем статус
+                        errorText = `Ошибка ${response.status}`;
+                    }
+                    showMessage(loginMessage, `❌ ${errorText}`, true);
+                }
+            } catch (error) {
+                console.error('Сетевая ошибка:', error);
+                showMessage(loginMessage, '❌ Ошибка сети. Проверьте подключение к серверу', true);
+            } finally {
+                // Скрыть лоадер
+                loginLoader.style.display = 'none';
+                loginBtn.disabled = false;
+            }
+        });
+
+        // Обработка регистрации (исправленная версия без ожидания JSON)
+        registerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('register-username').value.trim();
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            // Валидация
+            const usernameError = validateUsername(username);
+            if (usernameError) {
+                showMessage(registerMessage, usernameError, true);
+                return;
+            }
+            
+            const passwordError = validatePassword(password);
+            if (passwordError) {
+                showMessage(registerMessage, passwordError, true);
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showMessage(registerMessage, 'Пароли не совпадают', true);
+                return;
+            }
+            
+            // Показать лоадер
+            registerLoader.style.display = 'block';
+            registerBtn.disabled = true;
+            
+            try {
+                console.log('Отправка запроса на регистрацию пользователя:', username);
+                
+                const response = await fetch(REGISTER_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                console.log('Получен ответ от сервера:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                // Для регистрации НЕ пытаемся читать JSON, если статус 201 (Created)
+                if (response.status === 201) {
+                    // Успешная регистрация без тела ответа
+                    showMessage(registerMessage, '✅ Регистрация успешна! Теперь вы можете войти.', false);
+                    
+                    // Очистка формы
+                    registerForm.reset();
+                    
+                    // Автоматическое переключение на форму логина через 3 секунды
+                    setTimeout(() => {
+                        showLogin();
+                        // Автозаполнение имени пользователя в форме логина
+                        document.getElementById('login-username').value = username;
+                    }, 3000);
+                } else if (response.status === 409) {
+                    // Конфликт - пользователь уже существует
+                    showMessage(registerMessage, '❌ Пользователь с таким именем уже существует', true);
+                } else if (response.status === 400) {
+                    // Ошибка валидации
+                    try {
+                        const errorData = await response.json();
+                        showMessage(registerMessage, `❌ ${errorData.error || 'Ошибка валидации'}`, true);
+                    } catch {
+                        showMessage(registerMessage, '❌ Ошибка валидации', true);
+                    }
+                } else if (response.status === 500) {
+                    // Внутренняя ошибка сервера
+                    try {
+                        const errorData = await response.json();
+                        showMessage(registerMessage, `❌ Серверная ошибка: ${errorData.error || 'Попробуйте позже'}`, true);
+                    } catch {
+                        showMessage(registerMessage, '❌ Внутренняя ошибка сервера', true);
+                    }
+                } else {
+                    // Другие ошибки
+                    let errorMessage = `Ошибка ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                    } catch {
+                        // Не JSON ответ
+                    }
+                    showMessage(registerMessage, `❌ ${errorMessage}`, true);
+                }
+                
+            } catch (error) {
+                console.error('Сетевая ошибка при регистрации:', error);
+                showMessage(registerMessage, '❌ Ошибка сети. Проверьте подключение к серверу', true);
+            } finally {
+                // Скрыть лоадер
+                registerLoader.style.display = 'none';
+                registerBtn.disabled = false;
+            }
+        });
+
+        // Автозаполнение для демонстрации (удалите в продакшене)
+        function fillDemoCredentials() {
+            document.getElementById('login-username').value = 'demo_user';
+            document.getElementById('login-password').value = 'password123';
+            document.getElementById('register-username').value = 'new_user';
+            document.getElementById('register-password').value = 'password123';
+            document.getElementById('confirm-password').value = 'password123';
+        }
+
+        // Добавляем кнопку для демо данных (только для разработки)
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Страница загружена. API Base URL:', API_BASE_URL);
+            
+            // Заполняем демо данные при загрузке (опционально)
+            // fillDemoCredentials();
+            
+            // Добавляем обработку Enter для переключения между полями
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach((input, index) => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (index < inputs.length - 1) {
+                            inputs[index + 1].focus();
+                        } else {
+                            // Если последнее поле, отправляем форму
+                            if (loginSection.classList.contains('active')) {
+                                loginForm.dispatchEvent(new Event('submit'));
+                            } else {
+                                registerForm.dispatchEvent(new Event('submit'));
+                            }
+                        }
+                    }
+                });
+            });
+            
+            // Проверяем наличие токена при загрузке
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                console.log('Найден сохраненный токен, длина:', token.length);
+                
+                // Показываем кнопку выхода
+                const logoutBtn = document.createElement('button');
+                logoutBtn.textContent = 'Выйти';
+                logoutBtn.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff4757;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    z-index: 1000;
+                    font-size: 14px;
+                `;
+                logoutBtn.onclick = function() {
+                    localStorage.removeItem('auth_token');
+                    alert('Вы вышли из системы');
+                    location.reload();
+                };
+                document.body.appendChild(logoutBtn);
+                
+                // Также можно показать сообщение
+                const tokenMessage = document.createElement('div');
+                tokenMessage.textContent = 'Вы уже авторизованы';
+                tokenMessage.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    background: #d4edda;
+                    color: #155724;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    z-index: 1000;
+                `;
+                document.body.appendChild(tokenMessage);
+                
+                setTimeout(() => {
+                    tokenMessage.remove();
+                }, 3000);
+            }
+        });
+
+        // Валидация в реальном времени
+        document.getElementById('register-username').addEventListener('input', function() {
+            const error = validateUsername(this.value);
+            if (error) {
+                this.style.borderColor = '#ff4757';
+            } else {
+                this.style.borderColor = '#e1e5e9';
+            }
+        });
+
+        document.getElementById('register-password').addEventListener('input', function() {
+            const error = validatePassword(this.value);
+            if (error) {
+                this.style.borderColor = '#ff4757';
+            } else {
+                this.style.borderColor = '#e1e5e9';
+            }
+        });
+
+        document.getElementById('confirm-password').addEventListener('input', function() {
+            const password = document.getElementById('register-password').value;
+            if (this.value !== password) {
+                this.style.borderColor = '#ff4757';
+            } else {
+                this.style.borderColor = '#e1e5e9';
+            }
+        });
+        
+        // Функция для проверки доступности сервера (опционально)
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    console.log('Сервер доступен');
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Сервер недоступен:', error);
+                return false;
+            }
+        }
+        
+        // Проверяем сервер при загрузке
+        setTimeout(checkServerHealth, 1000);
+    </script>
+</body>
+</html>
