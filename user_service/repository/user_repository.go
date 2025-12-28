@@ -17,7 +17,10 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 func (r *UserRepository) CreateUser(user *model.User) (bool, error) {
 	var exist model.User
 	res := r.DB.Where("username = ?", user.Username).First(&exist).Error
-	return res == nil, r.DB.Create(user).Error
+	if res != nil {
+		return res == nil, r.DB.Create(user).Error
+	}
+	return res == nil, nil
 }
 
 func (r *UserRepository) GetUserByUsername(username string) (model.User, error) {
