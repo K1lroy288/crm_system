@@ -1,4 +1,4 @@
-module task-service
+module visit-service
 
 go 1.24.3
 
