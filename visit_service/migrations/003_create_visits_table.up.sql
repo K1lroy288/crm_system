@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS visits (
     contract_number VARCHAR(100) NOT NULL,
     contract_date DATE NOT NULL,
     scheduled_date DATE,
-    scheduled_time DATE,
+    scheduled_time VARCHAR(50),
     equipment_description TEXT,
     assigned_month VARCHAR(20),
     amount NUMERIC(10, 2),
