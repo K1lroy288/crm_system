@@ -4,8 +4,11 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"net/http"
 	"visit-service/config"
 	"visit-service/repository"
+
+	"github.com/gin-gonic/gin"
 )
 
 const migrationsDir = "migrations"
@@ -26,4 +29,12 @@ func main() {
 		log.Fatalf("Failed to apply migrations: %v", err)
 	}
 
+	r := gin.Default()
+
+	r.GET("/health", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "User service is up!")
+	})
+
+	addr := fmt.Sprintf(":%s", cfg.Port)
+	r.Run(addr)
 }

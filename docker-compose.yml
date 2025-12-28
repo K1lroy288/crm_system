@@ -16,6 +16,23 @@ services:
       retries: 10
       start_period: 10s
 
+  postgres-visit:
+    image: postgres:17
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_DB=visit_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - visit_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
   user-service:
     image: user-service:latest
     build:
@@ -50,5 +67,24 @@ services:
     restart:
       unless-stopped
 
+  visit-service:
+    image: visit-service:latest
+    build:
+      context: ./visit_service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      postgres-visit:
+        condition: service_healthy
+    restart: unless-stopped
+    
 volumes:
   user_data:
+  visit_data:
