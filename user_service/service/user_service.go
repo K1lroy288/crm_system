@@ -20,3 +20,18 @@ func (s *UserService) GetUserByUsername(username string) (model.User, error) {
 func (s *UserService) CreateUser(user *model.User) (bool, error) {
 	return s.repo.CreateUser(user)
 }
+
+func (s *UserService) GetUserByLastname(lastname string) (*model.MasterDTO, error) {
+	user, err := s.repo.GetUserByLastname(lastname)
+	if err != nil {
+		return nil, err
+	}
+
+	userDTO := &model.MasterDTO{
+		ID:        int(user.ID),
+		Username:  user.Username,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
+	return userDTO, nil
+}

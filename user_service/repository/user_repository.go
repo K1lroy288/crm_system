@@ -28,3 +28,9 @@ func (r *UserRepository) GetUserByUsername(username string) (model.User, error) 
 	err := r.DB.Where("username = ?", username).First(&user).Error
 	return user, err
 }
+
+func (r *UserRepository) GetUserByLastname(lastname string) (model.User, error) {
+	var user model.User
+	err := r.DB.Where("last_name = ?", lastname).First(&user).Error
+	return user, err
+}

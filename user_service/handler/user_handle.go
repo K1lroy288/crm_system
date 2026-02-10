@@ -84,3 +84,16 @@ func (h *UserHandler) CreateUser(ctx *gin.Context) {
 
 	ctx.Status(http.StatusCreated)
 }
+
+func (h *UserHandler) GetUserByLastname(ctx *gin.Context) {
+	lastname := ctx.Param("userid")
+
+	user, err := h.service.GetUserByLastname(lastname)
+	if err != nil {
+		log.Printf("error get user by lastname: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error get user by lastname"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"user": user})
+}

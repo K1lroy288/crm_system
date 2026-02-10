@@ -56,6 +56,11 @@ func main() {
 		api.POST("/register", handler.CreateUser)
 	}
 
+	api2 := r.Group("/user")
+	{
+		api2.GET(":lastname", handler.GetUserByLastname)
+	}
+
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	r.Run(addr)
 }
