@@ -24,6 +24,10 @@ func main() {
 		ctx.HTML(http.StatusOK, "authentication.html", nil)
 	})
 
+	r.GET("/table", func(ctx *gin.Context) {
+		ctx.HTML(http.StatusOK, "table.html", nil)
+	})
+
 	api := r.Group("/auth")
 	{
 		api.POST("/register", handler.ReverseProxy)

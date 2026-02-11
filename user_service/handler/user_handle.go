@@ -97,3 +97,7 @@ func (h *UserHandler) GetUserByLastname(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"user": user})
 }
+
+func (h *UserHandler) GetMasters(ctx *gin.Context) {
+
+}

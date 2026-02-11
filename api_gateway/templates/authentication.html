@@ -113,7 +113,7 @@
                     if (type === 'login') {
                         const token = (await res.json()).token;
                         if (token) localStorage.setItem('auth_token', token);
-                        setTimeout(() => window.location.href = '/dashboard', 2000);
+                        setTimeout(() => window.location.href = '/table', 2000);
                     } else {
                         setTimeout(() => {
                             showForm('login');

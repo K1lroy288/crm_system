@@ -10,6 +10,8 @@ type User struct {
 	FirstName    string `gorm:"size:50"`
 	LastName     string `gorm:"size:50"`
 	PasswordHash []byte `gorm:"not null"`
+
+	Roles []Role `gorm:"many2many:user_roles;"`
 }
 
 type UserDTO struct {

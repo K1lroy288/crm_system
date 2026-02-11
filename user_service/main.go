@@ -59,6 +59,8 @@ func main() {
 	api2 := r.Group("/user")
 	{
 		api2.GET(":lastname", handler.GetUserByLastname)
+
+		api2.GET("/masters", func(ctx *gin.Context) {})
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

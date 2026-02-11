@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визиты</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: #f5f5f7; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        h1 { color: #333; }
+        .btn { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #0056CC; }
+        .btn-red { background: #FF3B30; }
+        .btn-red:hover { background: #D70015; }
+        .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .filter input, .filter select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-top: 5px; }
+        .table-container { overflow-x: auto; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; position: sticky; top: 0; }
+        tr:hover { background: #f9f9f9; }
+        .actions { display: flex; gap: 5px; }
+        .status { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .status-scheduled { background: #E3F2FD; color: #1976D2; }
+        .status-completed { background: #E8F5E9; color: #2E7D32; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; color: #555; font-size: 14px; }
+        .form-group input, .form-group select, .form-group textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .form-buttons { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+        .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .logout-btn { background: #FF3B30; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 Визиты</h1>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" onclick="loadVisits()">Обновить</button>
+            <button class="btn" onclick="openModal('new')">+ Новый визит</button>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+    </div>
+
+    <div class="filters">
+        <div class="filter">
+            <label>Фамилия</label>
+            <input type="text" id="filter-lastname" oninput="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Телефон</label>
+            <input type="text" id="filter-phone" oninput="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Город</label>
+            <input type="text" id="filter-city" oninput="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Мастер</label>
+            <select id="filter-master" onchange="filterTable()">
+                <option value="">Все</option>
+            </select>
+        </div>
+        <div class="filter">
+            <label>Месяц назначения</label>
+            <select id="filter-month" onchange="filterTable()">
+                <option value="">Все</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <div class="loader" id="table-loader"></div>
+        <table id="visits-table">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Телефон</th>
+                    <th>Адрес</th>
+                    <th>Мастер</th>
+                    <th>Контракт</th>
+                    <th>Дата визита</th>
+                    <th>Оборудование</th>
+                    <th>Месяц назначения</th>
+                    <th>Сумма</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Новый визит</h2>
+                <button onclick="closeModal()" style="background:none;border:none;font-size:24px;cursor:pointer;">×</button>
+            </div>
+            <form id="visit-form" onsubmit="saveVisit(event)">
+                <div class="form-grid">
+                    <div class="form-group"><label>Фамилия*</label><input type="text" id="lastname" required></div>
+                    <div class="form-group"><label>Имя*</label><input type="text" id="firstname" required></div>
+                    <div class="form-group"><label>Отчество</label><input type="text" id="surname"></div>
+                    <div class="form-group"><label>Телефон*</label><input type="tel" id="phone" required></div>
+                    <div class="form-group"><label>Мастер</label><select id="masterid"></select></div>
+                    <div class="form-group"><label>Город</label><input type="text" id="city"></div>
+                    <div class="form-group"><label>Улица</label><input type="text" id="street"></div>
+                    <div class="form-group"><label>Дом</label><input type="number" id="housenumber" min="1"></div>
+                    <div class="form-group"><label>Корпус</label><input type="number" id="building" min="1"></div>
+                    <div class="form-group"><label>Квартира</label><input type="number" id="appartmentnumber" min="1"></div>
+                    <div class="form-group"><label>Номер контракта</label><input type="text" id="contractnumber"></div>
+                    <div class="form-group"><label>Дата контракта</label><input type="date" id="contractdate"></div>
+                    <div class="form-group"><label>Дата визита</label><input type="date" id="scheduleddate"></div>
+                    <div class="form-group"><label>Время визита</label><input type="time" id="scheduledtime"></div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Описание оборудования</label>
+                        <textarea id="equipmentdescription" rows="3"></textarea>
+                    </div>
+                    <div class="form-group"><label>Месяц назначения</label><input type="month" id="assignedmonth"></div>
+                    <div class="form-group"><label>Сумма</label><input type="number" step="0.01" id="amount" min="0"></div>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="btn btn-red" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3425';
+        let visits = [];
+        let masters = [];
+        let currentVisitId = null;
+
+        // Проверка авторизации
+        if (!localStorage.getItem('auth_token')) {
+            window.location.href = '/auth.html';
+        }
+
+        // Загрузка данных
+        async function loadData() {
+            try {
+                document.getElementById('table-loader').style.display = 'block';
+                
+                const [visitsRes, mastersRes] = await Promise.all([
+                    fetch(`${API_URL}/visits`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                    }),
+                    fetch(`${API_URL}/user/masters`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                    })
+                ]);
+
+                if (!visitsRes.ok || !mastersRes.ok) throw new Error('Ошибка загрузки');
+                
+                visits = await visitsRes.json();
+                masters = await mastersRes.json();
+                
+                renderTable();
+                populateFilters();
+            } catch (error) {
+                alert('Ошибка загрузки данных: ' + error.message);
+            } finally {
+                document.getElementById('table-loader').style.display = 'none';
+            }
+        }
+
+        // Рендер таблицы
+        function renderTable(data = visits) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            
+            data.forEach(visit => {
+                const row = document.createElement('tr');
+                const fullName = `${visit.lastname || ''} ${visit.firstname || ''} ${visit.surname || ''}`.trim();
+                const address = [
+                    visit.city,
+                    visit.street,
+                    visit.housenumber,
+                    visit.letter,
+                    visit.building ? `к.${visit.building}` : '',
+                    visit.appartmentnumber ? `кв.${visit.appartmentnumber}` : ''
+                ].filter(Boolean).join(', ');
+                
+                const master = masters.find(m => m.master_id === visit.masterid);
+                const masterName = master ? `${master.master_firstname} ${master.master_lastname}` : '-';
+                
+                const date = visit.scheduleddate ? new Date(visit.scheduleddate).toLocaleDateString('ru-RU') : '-';
+                const time = visit.scheduledtime || '';
+                
+                row.innerHTML = `
+                    <td>${fullName || '-'}</td>
+                    <td>${visit.phone || '-'}</td>
+                    <td>${address || '-'}</td>
+                    <td>${masterName}</td>
+                    <td>${visit.contractnumber || '-'}</td>
+                    <td>${date} ${time ? `в ${time}` : ''}</td>
+                    <td>${visit.equipmentdescription ? visit.equipmentdescription.substring(0, 50) + (visit.equipmentdescription.length > 50 ? '...' : '') : '-'}</td>
+                    <td><span class="status status-scheduled">${visit.assignedmonth || '-'}</span></td>
+                    <td>${visit.amount ? Number(visit.amount).toLocaleString('ru-RU') + ' ₽' : '-'}</td>
+                    <td class="actions">
+                        <button class="btn" onclick="editVisit(${JSON.stringify(visit).replace(/"/g, '&quot;')})">✏️</button>
+                        <button class="btn btn-red" onclick="deleteVisit(${visit.id || visit.contractnumber || ''})">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Заполнение фильтров
+        function populateFilters() {
+            const masterSelect = document.getElementById('filter-master');
+            const monthSelect = document.getElementById('filter-month');
+            
+            // Мастера
+            masterSelect.innerHTML = '<option value="">Все</option>';
+            masters.forEach(master => {
+                masterSelect.innerHTML += `<option value="${master.master_id}">${master.master_firstname} ${master.master_lastname}</option>`;
+            });
+            
+            // Месяцы
+            const months = [...new Set(visits.map(v => v.assignedmonth).filter(Boolean))].sort();
+            monthSelect.innerHTML = '<option value="">Все</option>';
+            months.forEach(month => {
+                monthSelect.innerHTML += `<option value="${month}">${month}</option>`;
+            });
+        }
+
+        // Фильтрация
+        function filterTable() {
+            const lastNameFilter = document.getElementById('filter-lastname').value.toLowerCase();
+            const phoneFilter = document.getElementById('filter-phone').value.toLowerCase();
+            const cityFilter = document.getElementById('filter-city').value.toLowerCase();
+            const masterFilter = document.getElementById('filter-master').value;
+            const monthFilter = document.getElementById('filter-month').value;
+            
+            const filtered = visits.filter(visit => {
+                return (!lastNameFilter || (visit.lastname || '').toLowerCase().includes(lastNameFilter)) &&
+                       (!phoneFilter || (visit.phone || '').includes(phoneFilter)) &&
+                       (!cityFilter || (visit.city || '').toLowerCase().includes(cityFilter)) &&
+                       (!masterFilter || visit.masterid == masterFilter) &&
+                       (!monthFilter || visit.assignedmonth === monthFilter);
+            });
+            
+            renderTable(filtered);
+        }
+
+        // Модальное окно
+        function openModal(type, visit = null) {
+            const modal = document.getElementById('edit-modal');
+            const title = document.getElementById('modal-title');
+            const form = document.getElementById('visit-form');
+            
+            currentVisitId = visit?.id || null;
+            title.textContent = type === 'new' ? 'Новый визит' : 'Редактировать визит';
+            
+            // Заполнение мастеров в форме
+            const masterSelect = document.getElementById('masterid');
+            masterSelect.innerHTML = '<option value="">Не выбран</option>';
+            masters.forEach(master => {
+                masterSelect.innerHTML += `<option value="${master.master_id}">${master.master_firstname} ${master.master_lastname}</option>`;
+            });
+            
+            // Заполнение данных
+            if (visit) {
+                Object.keys(visit).forEach(key => {
+                    const element = document.getElementById(key);
+                    if (element && visit[key] !== null) {
+                        element.value = visit[key];
+                    }
+                });
+                
+                // Форматирование дат
+                if (visit.contractdate) {
+                    document.getElementById('contractdate').value = visit.contractdate.split('T')[0];
+                }
+                if (visit.scheduleddate) {
+                    document.getElementById('scheduleddate').value = visit.scheduleddate.split('T')[0];
+                }
+                if (visit.assignedmonth) {
+                    document.getElementById('assignedmonth').value = visit.assignedmonth + '-01';
+                }
+            } else {
+                form.reset();
+                document.getElementById('assignedmonth').value = new Date().toISOString().slice(0, 7) + '-01';
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+            document.getElementById('visit-form').reset();
+            currentVisitId = null;
+        }
+
+        // Сохранение визита
+        async function saveVisit(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Преобразование типов
+            if (data.masterid === '') delete data.masterid;
+            if (data.building === '') delete data.building;
+            if (data.appartmentnumber === '') delete data.appartmentnumber;
+            if (data.amount === '') delete data.amount;
+            if (data.scheduleddate === '') delete data.scheduleddate;
+            if (data.assignedmonth) data.assignedmonth = data.assignedmonth.slice(0, 7);
+            
+            try {
+                const endpoint = currentVisitId ? `${API_URL}/visits/${currentVisitId}` : `${API_URL}/visits`;
+                const method = currentVisitId ? 'PUT' : 'POST';
+                
+                const res = await fetch(endpoint, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    closeModal();
+                    loadData();
+                    alert(currentVisitId ? 'Визит обновлен' : 'Визит создан');
+                } else {
+                    const error = await res.json();
+                    alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+                }
+            } catch (error) {
+                alert('Ошибка сети: ' + error.message);
+            }
+        }
+
+        // Редактирование
+        function editVisit(visit) {
+            openModal('edit', visit);
+        }
+
+        // Удаление
+        async function deleteVisit(id) {
+            if (!confirm('Удалить этот визит?')) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/visits/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                });
+                
+                if (res.ok) {
+                    loadData();
+                    alert('Визит удален');
+                } else {
+                    alert('Ошибка удаления');
+                }
+            } catch (error) {
+                alert('Ошибка сети');
+            }
+        }
+
+        // Выход
+        function logout() {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/auth.html';
+        }
+
+        function loadVisits() {
+            loadData();
+        }
+
+        // Загрузка при старте
+        loadData();
+
+        // Закрытие модального окна по клику вне
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>
