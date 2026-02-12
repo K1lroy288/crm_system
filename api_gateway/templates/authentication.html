@@ -68,6 +68,67 @@
         const messages = { login: document.getElementById('login-message'), register: document.getElementById('register-message') };
         const loaders = { login: document.getElementById('login-loader'), register: document.getElementById('register-loader') };
 
+        // Перехват fetch для добавления токена
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return originalFetch.call(this, url, options);
+        };
+
+        // Функция для редиректа на GET /table с токеном в заголовке
+        async function redirectToTableWithToken(token) {
+            localStorage.setItem('auth_token', token);
+            // Редирект с токеном в query параметре
+            window.location.href = `/table?token=${encodeURIComponent(token)}`;
+        }
+
+        // Функция для редиректа через POST форму (резервный вариант)
+        function redirectWithPostForm(url, token) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = url;
+            form.style.display = 'none';
+            
+            const tokenInput = document.createElement('input');
+            tokenInput.name = 'token';
+            tokenInput.value = token;
+            form.appendChild(tokenInput);
+            
+            document.body.appendChild(form);
+            console.log('Редирект через POST форму (fallback)');
+            form.submit();
+        }
+
+        // Проверка авторизации при загрузке страницы
+        (function() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                console.log('Токен найден, проверка валидности...');
+                
+                fetch(`${API_URL}/auth/verify`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+                .then(res => {
+                    if (res.ok) {
+                        console.log('Токен валиден, перенаправление на /table');
+                        window.location.href = '/table';
+                    } else {
+                        console.log('Токен невалиден, удаляем');
+                        localStorage.removeItem('auth_token');
+                    }
+                })
+                .catch(() => {
+                    console.log('Сервер недоступен');
+                });
+            }
+        })();
+
         function showForm(form) {
             Object.values(forms).forEach(f => f.classList.remove('active'));
             forms[form].classList.add('active');
@@ -75,14 +136,22 @@
         }
 
         function clearMessages() {
-            Object.values(messages).forEach(m => { m.className = 'message'; m.textContent = ''; });
+            Object.values(messages).forEach(m => { 
+                m.className = 'message'; 
+                m.textContent = ''; 
+            });
         }
 
         function showMessage(type, text, isError) {
             const msg = messages[type];
             msg.textContent = text;
             msg.className = `message ${isError ? 'error' : 'success'}`;
-            if (!isError) setTimeout(() => msg.style.display = 'none', 5000);
+            if (!isError) {
+                setTimeout(() => {
+                    msg.className = 'message';
+                    msg.textContent = '';
+                }, 5000);
+            }
         }
 
         function validateUsername(username) {
@@ -96,83 +165,115 @@
         async function handleSubmit(type, data) {
             const endpoint = `${API_URL}/auth/${type}`;
             const loader = loaders[type];
-            const btn = document.querySelector(`#${type}-form button`);
+            const btn = document.querySelector(`#${type}-form button[type="submit"]`);
             
             loader.style.display = 'inline-block';
             btn.disabled = true;
 
             try {
+                console.log(`Отправка ${type} запроса:`, endpoint);
+                
                 const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
 
-                if (res.ok || res.status === 201) {
+                const responseData = await res.json();
+                console.log(`Ответ от ${type}:`, responseData);
+
+                if (res.ok) {
                     showMessage(type, `✅ ${type === 'login' ? 'Вход выполнен!' : 'Регистрация успешна!'}`, false);
-                    if (type === 'login') {
-                        const token = (await res.json()).token;
-                        if (token) localStorage.setItem('auth_token', token);
-                        setTimeout(() => window.location.href = '/table', 2000);
-                    } else {
+                    
+                    if (type === 'login' && responseData.token) {
+                        redirectToTableWithToken(responseData.token);
+                    } else if (type === 'register' && res.status === 201) {
+                        // Регистрация - показываем форму входа
                         setTimeout(() => {
                             showForm('login');
                             document.getElementById('login-username').value = data.username;
-                        }, 3000);
+                            document.getElementById('login-password').value = '';
+                            showMessage('login', '✅ Регистрация успешна! Теперь войдите в систему', false);
+                        }, 2000);
                     }
                 } else {
-                    const error = await res.json().catch(() => ({ error: `Ошибка ${res.status}` }));
-                    showMessage(type, `❌ ${error.error || 'Ошибка'}`, true);
+                    const errorMsg = responseData.error || `Ошибка ${res.status}`;
+                    showMessage(type, `❌ ${errorMsg}`, true);
                 }
             } catch (err) {
-                showMessage(type, '❌ Ошибка сети', true);
+                console.error('Ошибка сети:', err);
+                showMessage(type, '❌ Ошибка сети. Проверьте подключение к серверу', true);
             } finally {
                 loader.style.display = 'none';
                 btn.disabled = false;
             }
         }
 
+        // Обработчик формы входа
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
+            
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
-            const err = validateUsername(username);
-            if (err) return showMessage('login', err, true);
-            if (!password) return showMessage('login', 'Введите пароль', true);
-            handleSubmit('login', { username, password });
+            
+            const usernameErr = validateUsername(username);
+            if (usernameErr) {
+                return showMessage('login', usernameErr, true);
+            }
+            
+            if (!password) {
+                return showMessage('login', 'Введите пароль', true);
+            }
+            
+            await handleSubmit('login', { username, password });
         };
 
+        // Обработчик формы регистрации
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
+            
             const username = document.getElementById('register-username').value.trim();
             const password = document.getElementById('register-password').value;
             const confirm = document.getElementById('confirm-password').value;
-            const userErr = validateUsername(username);
-            if (userErr) return showMessage('register', userErr, true);
-            const passErr = validatePassword(password);
-            if (passErr) return showMessage('register', passErr, true);
-            if (password !== confirm) return showMessage('register', 'Пароли не совпадают', true);
-            handleSubmit('register', { username, password });
+            
+            const usernameErr = validateUsername(username);
+            if (usernameErr) {
+                return showMessage('register', usernameErr, true);
+            }
+            
+            const passwordErr = validatePassword(password);
+            if (passwordErr) {
+                return showMessage('register', passwordErr, true);
+            }
+            
+            if (password !== confirm) {
+                return showMessage('register', '❌ Пароли не совпадают', true);
+            }
+            
+            await handleSubmit('register', { username, password });
         };
 
         // Валидация в реальном времени
-        ['register-username', 'register-password', 'confirm-password'].forEach(id => {
-            document.getElementById(id).oninput = function() {
-                const pass = document.getElementById('register-password').value;
-                const confirm = document.getElementById('confirm-password').value;
-                this.style.borderColor = (id === 'confirm-password' && confirm && confirm !== pass) ? '#ff4757' : '#ddd';
-            };
-        });
+        document.getElementById('register-username').oninput = function() {
+            const isValid = /^[a-zA-Z0-9]*$/.test(this.value);
+            this.style.borderColor = !isValid && this.value.length > 0 ? '#ff4757' : '#ddd';
+        };
 
-        // Проверка токена
-        if (localStorage.getItem('auth_token')) {
-            console.log('Токен найден');
-            const logout = document.createElement('button');
-            logout.textContent = 'Выйти';
-            logout.style.cssText = 'position:fixed;top:20px;right:20px;background:#ff4757;color:white;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;';
-            logout.onclick = () => { localStorage.removeItem('auth_token'); location.reload(); };
-            document.body.appendChild(logout);
-        }
+        document.getElementById('register-password').oninput = function() {
+            const confirmInput = document.getElementById('confirm-password');
+            this.style.borderColor = this.value.length < 8 && this.value.length > 0 ? '#ff4757' : '#ddd';
+            
+            if (confirmInput.value) {
+                confirmInput.style.borderColor = this.value !== confirmInput.value ? '#ff4757' : '#ddd';
+            }
+        };
+
+        document.getElementById('confirm-password').oninput = function() {
+            const password = document.getElementById('register-password').value;
+            this.style.borderColor = this.value !== password ? '#ff4757' : '#ddd';
+        };
+
+        console.log('Страница авторизации загружена');
     </script>
 </body>
 </html>

@@ -3,8 +3,11 @@ package main
 import (
 	"api-gateway/config"
 	"api-gateway/handler"
+	"api-gateway/utils"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,6 +28,29 @@ func main() {
 	})
 
 	r.GET("/table", func(ctx *gin.Context) {
+		token := ctx.Request.Header.Get("Authorization")
+		tokenString := ""
+
+		if token != "" {
+			tokenString = strings.TrimPrefix(token, "Bearer ")
+		}
+
+		if tokenString == "" {
+			tokenString = ctx.Query("token")
+		}
+
+		if tokenString == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization token"})
+			return
+		}
+
+		_, err := utils.ValidateJWT(tokenString)
+		if err != nil {
+			log.Printf("Invalid token: %v", err)
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+
 		ctx.HTML(http.StatusOK, "table.html", nil)
 	})
 

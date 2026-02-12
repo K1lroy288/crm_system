@@ -19,7 +19,7 @@ func NewUserHandler(s *service.UserService) *UserHandler {
 	return &UserHandler{service: s}
 }
 
-func (h *UserHandler) GetUserByUsername(ctx *gin.Context) {
+func (h *UserHandler) Login(ctx *gin.Context) {
 	var req model.UserDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		log.Printf("Invalid JSON at login request: %v", err)

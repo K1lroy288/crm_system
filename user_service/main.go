@@ -51,7 +51,7 @@ func main() {
 	api := r.Group("/auth")
 	{
 
-		api.POST("/login", handler.GetUserByUsername)
+		api.POST("/login", handler.Login)
 
 		api.POST("/register", handler.CreateUser)
 	}
