@@ -179,29 +179,47 @@
                     body: JSON.stringify(data)
                 });
 
-                const responseData = await res.json();
-                console.log(`Ответ от ${type}:`, responseData);
-
-                if (res.ok) {
-                    showMessage(type, `✅ ${type === 'login' ? 'Вход выполнен!' : 'Регистрация успешна!'}`, false);
-                    
-                    if (type === 'login' && responseData.token) {
-                        redirectToTableWithToken(responseData.token);
-                    } else if (type === 'register' && res.status === 201) {
-                        // Регистрация - показываем форму входа
+                // ✅ РЕГИСТРАЦИЯ - только статус, без JSON
+                if (type === 'register') {
+                    if (res.status === 201) {
+                        showMessage('register', '✅ Регистрация успешна!', false);
+                        
                         setTimeout(() => {
                             showForm('login');
                             document.getElementById('login-username').value = data.username;
                             document.getElementById('login-password').value = '';
                             showMessage('login', '✅ Регистрация успешна! Теперь войдите в систему', false);
-                        }, 2000);
+                        }, 500);
+                        return;
+                    } else {
+                        // Пытаемся получить ошибку, если есть
+                        let errorMsg = `Ошибка ${res.status}`;
+                        try {
+                            const errorData = await res.json();
+                            errorMsg = errorData.error || errorMsg;
+                        } catch (e) {}
+                        
+                        showMessage('register', `❌ ${errorMsg}`, true);
+                        return;
                     }
-                } else {
-                    const errorMsg = responseData.error || `Ошибка ${res.status}`;
-                    showMessage(type, `❌ ${errorMsg}`, true);
                 }
+                
+                // ✅ ЛОГИН - ждем JSON с токеном
+                if (type === 'login') {
+                    const responseData = await res.json();
+                    
+                    if (res.ok && responseData.token) {
+                        showMessage('login', '✅ Вход выполнен!', false);
+                        redirectToTableWithToken(responseData.token);
+                    } else {
+                        const errorMsg = responseData.error || `Ошибка ${res.status}`;
+                        showMessage('login', `❌ ${errorMsg}`, true);
+                    }
+                    return;
+                }
+                
             } catch (err) {
-                console.error('Ошибка сети:', err);
+                console.error('Ошибка:', err);
                 showMessage(type, '❌ Ошибка сети. Проверьте подключение к серверу', true);
             } finally {
                 loader.style.display = 'none';

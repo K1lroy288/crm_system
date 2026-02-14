@@ -56,9 +56,13 @@ func main() {
 
 	api := r.Group("/auth")
 	{
-		api.POST("/register", handler.ReverseProxy)
+		api.POST("/register", func(ctx *gin.Context) {
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
 
-		api.POST("/login", handler.ReverseProxy)
+		api.POST("/login", func(ctx *gin.Context) {
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.AppPort)
