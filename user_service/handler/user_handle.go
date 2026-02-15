@@ -99,5 +99,28 @@ func (h *UserHandler) GetUserByLastname(ctx *gin.Context) {
 }
 
 func (h *UserHandler) GetMasters(ctx *gin.Context) {
+	masters, err := h.service.GetMasters()
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+	}
 
+	ctx.JSON(http.StatusOK, masters)
+}
+
+func (h *UserHandler) GetMastersByIDs(ctx *gin.Context) {
+	var req []uint
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid JSON at login request: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+
+	masters, err := h.service.GetMastersByIDs(req)
+	if err != nil {
+		log.Printf("Error get masters from database: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, masters)
 }

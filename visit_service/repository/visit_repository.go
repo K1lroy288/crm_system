@@ -27,8 +27,8 @@ func (r *VisitRepository) CreateVisit(visit *model.Visit, address *model.Address
 	return err
 }
 
-func (r *VisitRepository) GetVisits() ([]model.VisitDTO, error) {
-	var visits []model.VisitDTO
+func (r *VisitRepository) GetVisits() ([]model.Visit, error) {
+	var visits []model.Visit
 
 	err := r.DB.Raw(`
 		SELECT v.* FROM visits v

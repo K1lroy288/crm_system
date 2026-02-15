@@ -12,6 +12,9 @@ type VisitDTO struct {
 	Surname              string          `json:"surname"`
 	Phone                string          `json:"phone"`
 	MasterID             *uint           `json:"masterid"`
+	MasterUsername       string          `json:"master_username"`
+	MasterFirstname      string          `json:"master_firstname"`
+	MasterLastname       string          `json:"master_lastname"`
 	City                 string          `json:"city"`
 	Locality             string          `json:"locality"`
 	Region               string          `json:"region"`

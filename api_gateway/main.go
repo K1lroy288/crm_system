@@ -65,6 +65,63 @@ func main() {
 		})
 	}
 
+	api2 := r.Group("/user")
+	{
+		api2.GET("/masters", func(ctx *gin.Context) {
+			token := ctx.Request.Header.Get("Authorization")
+			tokenString := ""
+
+			if token != "" {
+				tokenString = strings.TrimPrefix(token, "Bearer ")
+			}
+
+			if tokenString == "" {
+				tokenString = ctx.Query("token")
+			}
+
+			if tokenString == "" {
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization token"})
+				return
+			}
+
+			_, err := utils.ValidateJWT(tokenString)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
+	}
+
+	r.GET("/visits", func(ctx *gin.Context) {
+		token := ctx.Request.Header.Get("Authorization")
+		tokenString := ""
+
+		if token != "" {
+			tokenString = strings.TrimPrefix(token, "Bearer ")
+		}
+
+		if tokenString == "" {
+			tokenString = ctx.Query("token")
+		}
+
+		if tokenString == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization token"})
+			return
+		}
+
+		_, err := utils.ValidateJWT(tokenString)
+		if err != nil {
+			log.Printf("Invalid token: %v", err)
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+
+		handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
+	})
+
 	addr := fmt.Sprintf(":%s", cfg.AppPort)
 	r.Run(addr)
 }

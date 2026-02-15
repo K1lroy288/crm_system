@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 type UserServiceClient interface {
 	GetUserInfo(lastname string) (*model.MasterDTO, error)
+	GetMastersByIDs(mastersIDs []uint) ([]model.MasterDTO, error)
 }
 
 type userServiceClient struct {
@@ -45,6 +47,37 @@ func (u *userServiceClient) GetUserInfo(lastname string) (*model.MasterDTO, erro
 	}
 
 	var res *model.MasterDTO
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (u *userServiceClient) GetMastersByIDs(mastersIDs []uint) ([]model.MasterDTO, error) {
+	url := fmt.Sprintf("%s/user/mastersByIDs", u.baseURL)
+	postBody, err := json.Marshal(mastersIDs)
+	if err != nil {
+		return nil, err
+	}
+	reqBody := bytes.NewBuffer(postBody)
+
+	req, err := http.NewRequest("POST", url, reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := u.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("user service error: %d", resp.StatusCode)
+	}
+
+	var res []model.MasterDTO
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, err
 	}
