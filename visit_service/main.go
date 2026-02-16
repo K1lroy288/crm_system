@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"user-service/config"
-	"user-service/handler"
-	"user-service/repository"
-	"user-service/service"
+	"visit-service/config"
+	"visit-service/handler"
+	"visit-service/repository"
+	"visit-service/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
@@ -38,9 +38,9 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	repo := repository.NewUserRepository(db)
-	service := service.NewUserService(repo)
-	handler := handler.NewUserHandler(service)
+	repo := repository.NewVisitRepository(db)
+	service := service.NewVisitService(repo)
+	handler := handler.NewVisitHandler(service)
 
 	r := gin.Default()
 
@@ -48,21 +48,15 @@ func main() {
 		ctx.String(http.StatusOK, "User service is up!")
 	})
 
-	api := r.Group("/auth")
+	api := r.Group("/visit")
 	{
+		api.GET("/visits", handler.GetVisits)
 
-		api.POST("/login", handler.Login)
+		api.POST("/visits", handler.CreateVisit)
 
-		api.POST("/register", handler.CreateUser)
-	}
+		api.DELETE("/visits/:id", handler.DeleteVisit)
 
-	api2 := r.Group("/user")
-	{
-		api2.GET(":lastname", handler.GetUserByLastname)
-
-		api2.GET("/masters", handler.GetMasters)
-
-		api2.POST("/mastersByIDs", handler.GetMastersByIDs)
+		api.PUT("/visits/:id", handler.UpdateVisit)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

@@ -19,7 +19,7 @@ func NewUserHandler(s *service.UserService) *UserHandler {
 	return &UserHandler{service: s}
 }
 
-func (h *UserHandler) GetUserByUsername(ctx *gin.Context) {
+func (h *UserHandler) Login(ctx *gin.Context) {
 	var req model.UserDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		log.Printf("Invalid JSON at login request: %v", err)
@@ -83,4 +83,44 @@ func (h *UserHandler) CreateUser(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusCreated)
+}
+
+func (h *UserHandler) GetUserByLastname(ctx *gin.Context) {
+	lastname := ctx.Param("userid")
+
+	user, err := h.service.GetUserByLastname(lastname)
+	if err != nil {
+		log.Printf("error get user by lastname: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error get user by lastname"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+func (h *UserHandler) GetMasters(ctx *gin.Context) {
+	masters, err := h.service.GetMasters()
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+	}
+
+	ctx.JSON(http.StatusOK, masters)
+}
+
+func (h *UserHandler) GetMastersByIDs(ctx *gin.Context) {
+	var req []uint
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid JSON at login request: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+
+	masters, err := h.service.GetMastersByIDs(req)
+	if err != nil {
+		log.Printf("Error get masters from database: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, masters)
 }

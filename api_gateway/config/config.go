@@ -8,11 +8,13 @@ import (
 )
 
 type Config struct {
-	AppHost         string
-	AppPort         string
-	JwtSecret       string
-	UserServiceHost string
-	UserServicePort string
+	AppHost          string
+	AppPort          string
+	JwtSecret        string
+	UserServiceHost  string
+	UserServicePort  string
+	VisitServiceHost string
+	VisitServicePort string
 }
 
 var (
@@ -23,11 +25,13 @@ var (
 func loadConfig() *Config {
 	once.Do(func() {
 		instance = &Config{
-			AppHost:         os.Getenv("APP_HOST"),
-			AppPort:         os.Getenv("APP_PORT"),
-			JwtSecret:       os.Getenv("JWT_SECRET"),
-			UserServiceHost: os.Getenv("USER_SERVICE_HOST"),
-			UserServicePort: os.Getenv("USER_SERVICE_PORT"),
+			AppHost:          os.Getenv("APP_HOST"),
+			AppPort:          os.Getenv("APP_PORT"),
+			JwtSecret:        os.Getenv("JWT_SECRET"),
+			UserServiceHost:  os.Getenv("USER_SERVICE_HOST"),
+			UserServicePort:  os.Getenv("USER_SERVICE_PORT"),
+			VisitServiceHost: os.Getenv("VISIT_SERVICE_HOST"),
+			VisitServicePort: os.Getenv("VISIT_SERVICE_PORT"),
 		}
 	})
 
