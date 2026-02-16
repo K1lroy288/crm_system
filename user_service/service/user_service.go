@@ -28,7 +28,7 @@ func (s *UserService) GetUserByLastname(lastname string) (*model.MasterDTO, erro
 	}
 
 	userDTO := &model.MasterDTO{
-		ID:        int(user.ID),
+		ID:        user.ID,
 		Username:  user.Username,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
@@ -45,7 +45,7 @@ func (s *UserService) GetMasters() ([]model.MasterDTO, error) {
 	var mastersDTO []model.MasterDTO
 	for _, master := range masters {
 		masterDTO := &model.MasterDTO{
-			ID:        int(master.ID),
+			ID:        master.ID,
 			Username:  master.Username,
 			FirstName: master.FirstName,
 			LastName:  master.LastName,
@@ -66,7 +66,7 @@ func (s *UserService) GetMastersByIDs(mastersIDs []uint) ([]model.MasterDTO, err
 	var mastersDTO []model.MasterDTO
 	for _, master := range masters {
 		masterDTO := &model.MasterDTO{
-			ID:        int(master.ID),
+			ID:        master.ID,
 			Username:  master.Username,
 			FirstName: master.FirstName,
 			LastName:  master.LastName,

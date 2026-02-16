@@ -13,12 +13,72 @@
         .btn:hover { background: #0056CC; }
         .btn-red { background: #FF3B30; }
         .btn-red:hover { background: #D70015; }
-        .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .filter input, .filter select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-top: 5px; }
+        .filters { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            background: white; 
+            padding: 15px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+        }
+        .filter input, .filter select { 
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            margin-top: 5px; 
+        }
+        .filter-row {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .sort-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .sort-controls select, .sort-controls button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+        }
+        .sort-controls button:hover {
+            background: #f0f0f0;
+        }
         .table-container { overflow-x: auto; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1400px; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f8f9fa; font-weight: 600; color: #555; position: sticky; top: 0; }
+        th { 
+            background: #f8f9fa; 
+            font-weight: 600; 
+            color: #555; 
+            position: sticky; 
+            top: 0; 
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            background: #e8e9ea;
+        }
+        th.sort-asc::after {
+            content: " ↑";
+            color: #007AFF;
+        }
+        th.sort-desc::after {
+            content: " ↓";
+            color: #007AFF;
+        }
         tr:hover { background: #f9f9f9; }
         .actions { display: flex; gap: 5px; }
         .status { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
@@ -35,6 +95,15 @@
         .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .logout-btn { background: #FF3B30; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .missing-field { color: #999; font-style: italic; }
+        .tooltip { position: relative; display: inline-block; cursor: help; }
+        .tooltip .tooltiptext { visibility: hidden; width: 200px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -100px; opacity: 0; transition: opacity 0.3s; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .contract-date {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -49,8 +118,8 @@
 
     <div class="filters">
         <div class="filter">
-            <label>Фамилия</label>
-            <input type="text" id="filter-lastname" oninput="filterTable()">
+            <label>ФИО</label>
+            <input type="text" id="filter-fullname" placeholder="Фамилия Имя Отчество" oninput="filterTable()">
         </div>
         <div class="filter">
             <label>Телефон</label>
@@ -59,6 +128,14 @@
         <div class="filter">
             <label>Город</label>
             <input type="text" id="filter-city" oninput="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Улица</label>
+            <input type="text" id="filter-street" oninput="filterTable()">
+        </div>
+        <div class="filter">
+            <label>№ контракта</label>
+            <input type="text" id="filter-contract" oninput="filterTable()">
         </div>
         <div class="filter">
             <label>Мастер</label>
@@ -72,6 +149,49 @@
                 <option value="">Все</option>
             </select>
         </div>
+        <div class="filter">
+            <label>Дата визита с</label>
+            <input type="date" id="filter-date-from" onchange="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Дата визита по</label>
+            <input type="date" id="filter-date-to" onchange="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Сумма от</label>
+            <input type="number" id="filter-amount-from" step="0.01" oninput="filterTable()">
+        </div>
+        <div class="filter">
+            <label>Сумма до</label>
+            <input type="number" id="filter-amount-to" step="0.01" oninput="filterTable()">
+        </div>
+        
+        <div class="filter-row">
+            <div class="sort-controls">
+                <span>Сортировка:</span>
+                <select id="sort-field">
+                    <option value="client.last_name">ФИО</option>
+                    <option value="client.phone">Телефон</option>
+                    <option value="address.city">Город</option>
+                    <option value="address.street">Улица</option>
+                    <option value="master">Мастер</option>
+                    <option value="contract_number">№ контракта</option>
+                    <option value="contract_date">Дата контракта</option>
+                    <option value="scheduled_date">Дата визита</option>
+                    <option value="assigned_month">Месяц назначения</option>
+                    <option value="amount">Сумма</option>
+                </select>
+                <select id="sort-order">
+                    <option value="asc">По возрастанию</option>
+                    <option value="desc">По убыванию</option>
+                </select>
+                <button onclick="applySort()">Применить</button>
+                <button onclick="resetFilters()">Сбросить</button>
+            </div>
+            <div>
+                <span>Найдено: <span id="results-count">0</span></span>
+            </div>
+        </div>
     </div>
 
     <div class="table-container">
@@ -79,15 +199,15 @@
         <table id="visits-table">
             <thead>
                 <tr>
-                    <th>ФИО</th>
-                    <th>Телефон</th>
-                    <th>Адрес</th>
-                    <th>Мастер</th>
-                    <th>Контракт</th>
-                    <th>Дата визита</th>
-                    <th>Оборудование</th>
-                    <th>Месяц назначения</th>
-                    <th>Сумма</th>
+                    <th onclick="sortBy('client.last_name')">ФИО</th>
+                    <th onclick="sortBy('client.phone')">Телефон</th>
+                    <th onclick="sortBy('address.city')">Адрес</th>
+                    <th onclick="sortBy('master')">Мастер</th>
+                    <th onclick="sortBy('contract_number')">Контракт</th>
+                    <th onclick="sortBy('scheduled_date')">Дата визита</th>
+                    <th onclick="sortBy('equipment_description')">Оборудование</th>
+                    <th onclick="sortBy('assigned_month')">Месяц назначения</th>
+                    <th onclick="sortBy('amount')">Сумма</th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -109,8 +229,11 @@
                     <div class="form-group"><label>Телефон*</label><input type="tel" id="phone" required></div>
                     <div class="form-group"><label>Мастер</label><select id="masterid"></select></div>
                     <div class="form-group"><label>Город</label><input type="text" id="city"></div>
+                    <div class="form-group"><label>Район/Населенный пункт</label><input type="text" id="locality"></div>
+                    <div class="form-group"><label>Регион</label><input type="text" id="region"></div>
                     <div class="form-group"><label>Улица</label><input type="text" id="street"></div>
-                    <div class="form-group"><label>Дом</label><input type="number" id="housenumber" min="1"></div>
+                    <div class="form-group"><label>Дом*</label><input type="number" id="housenumber" min="1" required></div>
+                    <div class="form-group"><label>Литера</label><input type="text" id="letter" maxlength="10"></div>
                     <div class="form-group"><label>Корпус</label><input type="number" id="building" min="1"></div>
                     <div class="form-group"><label>Квартира</label><input type="number" id="appartmentnumber" min="1"></div>
                     <div class="form-group"><label>Номер контракта</label><input type="text" id="contractnumber"></div>
@@ -137,6 +260,9 @@
         let visits = [];
         let masters = [];
         let currentVisitId = null;
+        let isLoading = false;
+        let currentSortField = 'client.last_name';
+        let currentSortOrder = 'asc';
 
         // Проверка авторизации
         if (!localStorage.getItem('auth_token')) {
@@ -145,11 +271,16 @@
 
         // Загрузка данных
         async function loadData() {
+            if (isLoading) return;
+            isLoading = true;
+            
             try {
                 document.getElementById('table-loader').style.display = 'block';
                 
+                console.log('Загрузка данных...');
+                
                 const [visitsRes, mastersRes] = await Promise.all([
-                    fetch(`${API_URL}/visits`, {
+                    fetch(`${API_URL}/visit/visits`, {
                         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                     }),
                     fetch(`${API_URL}/user/masters`, {
@@ -157,60 +288,305 @@
                     })
                 ]);
 
-                if (!visitsRes.ok || !mastersRes.ok) throw new Error('Ошибка загрузки');
+                if (!visitsRes.ok) throw new Error(`Ошибка загрузки визитов: ${visitsRes.status}`);
+                if (!mastersRes.ok) throw new Error(`Ошибка загрузки мастеров: ${mastersRes.status}`);
                 
                 visits = await visitsRes.json();
                 masters = await mastersRes.json();
                 
+                console.log('✅ Данные загружены:', {
+                    visits: visits.length,
+                    masters: masters.length
+                });
+                
+                if (visits.length > 0) {
+                    console.log('Пример структуры визита:', JSON.stringify(visits[0], null, 2));
+                }
+                
                 renderTable();
                 populateFilters();
+                
             } catch (error) {
+                console.error('❌ Ошибка:', error);
                 alert('Ошибка загрузки данных: ' + error.message);
             } finally {
                 document.getElementById('table-loader').style.display = 'none';
+                isLoading = false;
             }
         }
 
+        // Форматирование адреса
+        function formatAddress(address) {
+            if (!address) return '-';
+            
+            const parts = [];
+            if (address.city) parts.push(address.city);
+            if (address.locality) parts.push(address.locality);
+            if (address.street) parts.push(`ул. ${address.street}`);
+            if (address.house_number) parts.push(`д. ${address.house_number}`);
+            if (address.letter) parts.push(`лит. ${address.letter}`);
+            if (address.building) parts.push(`к. ${address.building}`);
+            if (address.appartment_number) parts.push(`кв. ${address.appartment_number}`);
+            
+            return parts.length > 0 ? parts.join(', ') : '-';
+        }
+
+        // Форматирование ФИО
+        function formatFullName(client) {
+            if (!client) return '-';
+            const parts = [];
+            if (client.last_name) parts.push(client.last_name);
+            if (client.first_name) parts.push(client.first_name);
+            if (client.surname) parts.push(client.surname);
+            return parts.length > 0 ? parts.join(' ') : '-';
+        }
+
+        // Получение значения поля для сортировки
+        function getSortValue(visit, field) {
+            switch(field) {
+                case 'client.last_name':
+                    return visit.client?.last_name || '';
+                case 'client.phone':
+                    return visit.client?.phone || '';
+                case 'address.city':
+                    return visit.address?.city || '';
+                case 'address.street':
+                    return visit.address?.street || '';
+                case 'master':
+                    const master = masters.find(m => m.master_id === visit.master_id);
+                    return master ? `${master.master_lastname} ${master.master_firstname}` : '';
+                case 'contract_number':
+                    return visit.contract_number || '';
+                case 'contract_date':
+                    return visit.contract_date || '';
+                case 'scheduled_date':
+                    return visit.scheduled_date || '';
+                case 'assigned_month':
+                    return visit.assigned_month || '';
+                case 'equipment_description':
+                    return visit.equipment_description || '';
+                case 'amount':
+                    return visit.amount || 0;
+                default:
+                    return '';
+            }
+        }
+
+        // Сортировка
+        function sortVisits(visits, field, order) {
+            return [...visits].sort((a, b) => {
+                let valA = getSortValue(a, field);
+                let valB = getSortValue(b, field);
+                
+                // Преобразование для числовых полей
+                if (field === 'amount') {
+                    valA = Number(valA) || 0;
+                    valB = Number(valB) || 0;
+                }
+                
+                // Преобразование для дат
+                if (field === 'scheduled_date' || field === 'contract_date') {
+                    valA = valA ? new Date(valA).getTime() : 0;
+                    valB = valB ? new Date(valB).getTime() : 0;
+                }
+                
+                if (order === 'asc') {
+                    return valA > valB ? 1 : valA < valB ? -1 : 0;
+                } else {
+                    return valA < valB ? 1 : valA > valB ? -1 : 0;
+                }
+            });
+        }
+
+        // Фильтрация
+        function filterVisits() {
+            const fullNameFilter = document.getElementById('filter-fullname').value.toLowerCase();
+            const phoneFilter = document.getElementById('filter-phone').value.toLowerCase();
+            const cityFilter = document.getElementById('filter-city').value.toLowerCase();
+            const streetFilter = document.getElementById('filter-street').value.toLowerCase();
+            const contractFilter = document.getElementById('filter-contract').value.toLowerCase();
+            const masterFilter = document.getElementById('filter-master').value;
+            const monthFilter = document.getElementById('filter-month').value;
+            const dateFrom = document.getElementById('filter-date-from').value;
+            const dateTo = document.getElementById('filter-date-to').value;
+            const amountFrom = document.getElementById('filter-amount-from').value;
+            const amountTo = document.getElementById('filter-amount-to').value;
+            
+            const filtered = visits.filter(visit => {
+                const fullName = formatFullName(visit.client).toLowerCase();
+                const phone = visit.client?.phone || '';
+                const city = visit.address?.city || '';
+                const street = visit.address?.street || '';
+                const contract = visit.contract_number || '';
+                const scheduledDate = visit.scheduled_date ? new Date(visit.scheduled_date) : null;
+                const amount = Number(visit.amount) || 0;
+                
+                // Проверка фильтров
+                const nameMatch = !fullNameFilter || fullName.includes(fullNameFilter);
+                const phoneMatch = !phoneFilter || phone.toLowerCase().includes(phoneFilter);
+                const cityMatch = !cityFilter || city.toLowerCase().includes(cityFilter);
+                const streetMatch = !streetFilter || street.toLowerCase().includes(streetFilter);
+                const contractMatch = !contractFilter || contract.toLowerCase().includes(contractFilter);
+                const masterMatch = !masterFilter || visit.master_id == masterFilter;
+                const monthMatch = !monthFilter || visit.assigned_month === monthFilter;
+                
+                // Фильтр по дате
+                let dateMatch = true;
+                if (dateFrom && scheduledDate) {
+                    dateMatch = scheduledDate >= new Date(dateFrom);
+                }
+                if (dateMatch && dateTo && scheduledDate) {
+                    dateMatch = scheduledDate <= new Date(dateTo + 'T23:59:59');
+                }
+                
+                // Фильтр по сумме
+                let amountMatch = true;
+                if (amountFrom) {
+                    amountMatch = amount >= Number(amountFrom);
+                }
+                if (amountMatch && amountTo) {
+                    amountMatch = amount <= Number(amountTo);
+                }
+                
+                return nameMatch && phoneMatch && cityMatch && streetMatch && 
+                       contractMatch && masterMatch && monthMatch && dateMatch && amountMatch;
+            });
+            
+            // Применяем сортировку
+            const sorted = sortVisits(filtered, currentSortField, currentSortOrder);
+            
+            document.getElementById('results-count').textContent = filtered.length;
+            
+            return sorted;
+        }
+
         // Рендер таблицы
-        function renderTable(data = visits) {
+        function renderTable() {
+            const filteredData = filterVisits();
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
             
-            data.forEach(visit => {
+            if (!filteredData || filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">Нет данных</td></tr>';
+                return;
+            }
+            
+            filteredData.forEach(visit => {
                 const row = document.createElement('tr');
-                const fullName = `${visit.lastname || ''} ${visit.firstname || ''} ${visit.surname || ''}`.trim();
-                const address = [
-                    visit.city,
-                    visit.street,
-                    visit.housenumber,
-                    visit.letter,
-                    visit.building ? `к.${visit.building}` : '',
-                    visit.appartmentnumber ? `кв.${visit.appartmentnumber}` : ''
-                ].filter(Boolean).join(', ');
                 
-                const master = masters.find(m => m.master_id === visit.masterid);
+                const fullName = formatFullName(visit.client);
+                const phone = visit.client?.phone || '-';
+                const address = formatAddress(visit.address);
+                
+                const master = masters.find(m => m.master_id === visit.master_id);
                 const masterName = master ? `${master.master_firstname} ${master.master_lastname}` : '-';
                 
-                const date = visit.scheduleddate ? new Date(visit.scheduleddate).toLocaleDateString('ru-RU') : '-';
-                const time = visit.scheduledtime || '';
+                const contractNumber = visit.contract_number || '-';
+                const contractDate = visit.contract_date ? new Date(visit.contract_date).toLocaleDateString('ru-RU') : '';
+                const contractDisplay = contractDate ? `${contractNumber}<div class="contract-date">от ${contractDate}</div>` : contractNumber;
+                
+                const date = visit.scheduled_date ? new Date(visit.scheduled_date).toLocaleDateString('ru-RU') : '-';
+                const time = visit.scheduled_time || '';
+                const scheduledDateTime = time ? `${date} в ${time}` : date;
+                
+                const equipment = visit.equipment_description || '-';
+                const equipmentShort = equipment.length > 50 ? equipment.substring(0, 50) + '...' : equipment;
+                
+                const month = visit.assigned_month || '-';
+                const amount = visit.amount ? Number(visit.amount).toLocaleString('ru-RU') + ' ₽' : '-';
+                
+                // Создаем безопасную строку JSON для передачи в editVisit
+                const visitJson = JSON.stringify(visit).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
                 
                 row.innerHTML = `
-                    <td>${fullName || '-'}</td>
-                    <td>${visit.phone || '-'}</td>
-                    <td>${address || '-'}</td>
+                    <td>${fullName}</td>
+                    <td>${phone}</td>
+                    <td class="tooltip">
+                        ${address.length > 30 ? address.substring(0, 30) + '...' : address}
+                        ${address.length > 30 ? `<span class="tooltiptext">${address}</span>` : ''}
+                    </td>
                     <td>${masterName}</td>
-                    <td>${visit.contractnumber || '-'}</td>
-                    <td>${date} ${time ? `в ${time}` : ''}</td>
-                    <td>${visit.equipmentdescription ? visit.equipmentdescription.substring(0, 50) + (visit.equipmentdescription.length > 50 ? '...' : '') : '-'}</td>
-                    <td><span class="status status-scheduled">${visit.assignedmonth || '-'}</span></td>
-                    <td>${visit.amount ? Number(visit.amount).toLocaleString('ru-RU') + ' ₽' : '-'}</td>
+                    <td class="tooltip">
+                        ${contractDisplay}
+                        ${contractNumber.length > 15 ? `<span class="tooltiptext">${contractNumber}</span>` : ''}
+                    </td>
+                    <td>${scheduledDateTime}</td>
+                    <td class="tooltip">
+                        ${equipmentShort}
+                        ${equipment.length > 50 ? `<span class="tooltiptext">${equipment}</span>` : ''}
+                    </td>
+                    <td>${month}</td>
+                    <td>${amount}</td>
                     <td class="actions">
-                        <button class="btn" onclick="editVisit(${JSON.stringify(visit).replace(/"/g, '&quot;')})">✏️</button>
-                        <button class="btn btn-red" onclick="deleteVisit(${visit.id || visit.contractnumber || ''})">🗑️</button>
+                        <button class="btn" onclick='editVisit(${visitJson})'>✏️</button>
+                        <button class="btn btn-red" onclick="deleteVisit(${visit.id})">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
+            
+            // Обновляем индикаторы сортировки в заголовках
+            updateSortIndicators();
+        }
+
+        // Обновление индикаторов сортировки
+        function updateSortIndicators() {
+            const headers = document.querySelectorAll('th');
+            headers.forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            
+            const sortedHeader = Array.from(headers).find(th => 
+                th.textContent.toLowerCase().includes(currentSortField.split('.')[1] || currentSortField)
+            );
+            
+            if (sortedHeader) {
+                sortedHeader.classList.add(currentSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+        }
+
+        // Сортировка по клику на заголовок
+        function sortBy(field) {
+            if (currentSortField === field) {
+                currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortField = field;
+                currentSortOrder = 'asc';
+            }
+            
+            document.getElementById('sort-field').value = field;
+            document.getElementById('sort-order').value = currentSortOrder;
+            
+            renderTable();
+        }
+
+        // Применение сортировки из контролов
+        function applySort() {
+            currentSortField = document.getElementById('sort-field').value;
+            currentSortOrder = document.getElementById('sort-order').value;
+            renderTable();
+        }
+
+        // Сброс фильтров
+        function resetFilters() {
+            document.getElementById('filter-fullname').value = '';
+            document.getElementById('filter-phone').value = '';
+            document.getElementById('filter-city').value = '';
+            document.getElementById('filter-street').value = '';
+            document.getElementById('filter-contract').value = '';
+            document.getElementById('filter-master').value = '';
+            document.getElementById('filter-month').value = '';
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            document.getElementById('filter-amount-from').value = '';
+            document.getElementById('filter-amount-to').value = '';
+            
+            currentSortField = 'client.last_name';
+            currentSortOrder = 'asc';
+            document.getElementById('sort-field').value = 'client.last_name';
+            document.getElementById('sort-order').value = 'asc';
+            
+            renderTable();
         }
 
         // Заполнение фильтров
@@ -220,39 +596,40 @@
             
             // Мастера
             masterSelect.innerHTML = '<option value="">Все</option>';
-            masters.forEach(master => {
-                masterSelect.innerHTML += `<option value="${master.master_id}">${master.master_firstname} ${master.master_lastname}</option>`;
-            });
+            
+            if (masters && masters.length > 0) {
+                masters.forEach(master => {
+                    masterSelect.innerHTML += `<option value="${master.master_id}">${master.master_firstname} ${master.master_lastname}</option>`;
+                });
+            }
             
             // Месяцы
-            const months = [...new Set(visits.map(v => v.assignedmonth).filter(Boolean))].sort();
+            const months = [...new Set(visits.map(v => v.assigned_month).filter(Boolean))].sort();
             monthSelect.innerHTML = '<option value="">Все</option>';
             months.forEach(month => {
-                monthSelect.innerHTML += `<option value="${month}">${month}</option>`;
+                let displayMonth = month;
+                if (month && month.match(/^\d{4}-\d{2}$/)) {
+                    const [year, monthNum] = month.split('-');
+                    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                                      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                    displayMonth = `${monthNames[parseInt(monthNum)-1]} ${year}`;
+                }
+                monthSelect.innerHTML += `<option value="${month}">${displayMonth}</option>`;
             });
         }
 
-        // Фильтрация
+        // Фильтрация (обертка для совместимости)
         function filterTable() {
-            const lastNameFilter = document.getElementById('filter-lastname').value.toLowerCase();
-            const phoneFilter = document.getElementById('filter-phone').value.toLowerCase();
-            const cityFilter = document.getElementById('filter-city').value.toLowerCase();
-            const masterFilter = document.getElementById('filter-master').value;
-            const monthFilter = document.getElementById('filter-month').value;
-            
-            const filtered = visits.filter(visit => {
-                return (!lastNameFilter || (visit.lastname || '').toLowerCase().includes(lastNameFilter)) &&
-                       (!phoneFilter || (visit.phone || '').includes(phoneFilter)) &&
-                       (!cityFilter || (visit.city || '').toLowerCase().includes(cityFilter)) &&
-                       (!masterFilter || visit.masterid == masterFilter) &&
-                       (!monthFilter || visit.assignedmonth === monthFilter);
-            });
-            
-            renderTable(filtered);
+            renderTable();
         }
 
         // Модальное окно
         function openModal(type, visit = null) {
+            if (isLoading) {
+                alert('Данные еще загружаются, подождите...');
+                return;
+            }
+            
             const modal = document.getElementById('edit-modal');
             const title = document.getElementById('modal-title');
             const form = document.getElementById('visit-form');
@@ -263,28 +640,46 @@
             // Заполнение мастеров в форме
             const masterSelect = document.getElementById('masterid');
             masterSelect.innerHTML = '<option value="">Не выбран</option>';
-            masters.forEach(master => {
-                masterSelect.innerHTML += `<option value="${master.master_id}">${master.master_firstname} ${master.master_lastname}</option>`;
-            });
+            
+            if (masters && masters.length > 0) {
+                masters.forEach(master => {
+                    masterSelect.innerHTML += `<option value="${master.master_id}">${master.master_firstname} ${master.master_lastname}</option>`;
+                });
+            }
             
             // Заполнение данных
             if (visit) {
-                Object.keys(visit).forEach(key => {
-                    const element = document.getElementById(key);
-                    if (element && visit[key] !== null) {
-                        element.value = visit[key];
-                    }
-                });
+                document.getElementById('lastname').value = visit.client?.last_name || '';
+                document.getElementById('firstname').value = visit.client?.first_name || '';
+                document.getElementById('surname').value = visit.client?.surname || '';
+                document.getElementById('phone').value = visit.client?.phone || '';
                 
-                // Форматирование дат
-                if (visit.contractdate) {
-                    document.getElementById('contractdate').value = visit.contractdate.split('T')[0];
+                if (visit.master_id) document.getElementById('masterid').value = visit.master_id;
+                
+                document.getElementById('city').value = visit.address?.city || '';
+                document.getElementById('locality').value = visit.address?.locality || '';
+                document.getElementById('region').value = visit.address?.region || '';
+                document.getElementById('street').value = visit.address?.street || '';
+                document.getElementById('housenumber').value = visit.address?.house_number || '';
+                document.getElementById('letter').value = visit.address?.letter || '';
+                document.getElementById('building').value = visit.address?.building || '';
+                document.getElementById('appartmentnumber').value = visit.address?.appartment_number || '';
+                
+                document.getElementById('contractnumber').value = visit.contract_number || '';
+                document.getElementById('equipmentdescription').value = visit.equipment_description || '';
+                document.getElementById('amount').value = visit.amount || '';
+                
+                if (visit.contract_date) {
+                    document.getElementById('contractdate').value = visit.contract_date.split('T')[0];
                 }
-                if (visit.scheduleddate) {
-                    document.getElementById('scheduleddate').value = visit.scheduleddate.split('T')[0];
+                if (visit.scheduled_date) {
+                    document.getElementById('scheduleddate').value = visit.scheduled_date.split('T')[0];
                 }
-                if (visit.assignedmonth) {
-                    document.getElementById('assignedmonth').value = visit.assignedmonth + '-01';
+                if (visit.scheduled_time) {
+                    document.getElementById('scheduledtime').value = visit.scheduled_time;
+                }
+                if (visit.assigned_month) {
+                    document.getElementById('assignedmonth').value = visit.assigned_month + '-01';
                 }
             } else {
                 form.reset();
@@ -304,19 +699,63 @@
         async function saveVisit(event) {
             event.preventDefault();
             
-            const formData = new FormData(event.target);
-            const data = Object.fromEntries(formData.entries());
+            const visitData = {
+                client: {
+                    first_name: document.getElementById('firstname').value,
+                    last_name: document.getElementById('lastname').value,
+                    surname: document.getElementById('surname').value || '',
+                    phone: document.getElementById('phone').value
+                },
+                address: {
+                    city: document.getElementById('city').value || '',
+                    locality: document.getElementById('locality').value || '',
+                    region: document.getElementById('region').value || '',
+                    street: document.getElementById('street').value || '',
+                    house_number: parseInt(document.getElementById('housenumber').value) || 0,
+                    letter: document.getElementById('letter').value || '',
+                    building: document.getElementById('building').value ? parseInt(document.getElementById('building').value) : null,
+                    appartment_number: document.getElementById('appartmentnumber').value ? parseInt(document.getElementById('appartmentnumber').value) : null
+                },
+                contract_number: document.getElementById('contractnumber').value || '',
+                contract_date: document.getElementById('contractdate').value 
+                    ? document.getElementById('contractdate').value + 'T00:00:00Z'
+                    : '',
+                scheduled_date: document.getElementById('scheduleddate').value 
+                    ? document.getElementById('scheduleddate').value + 'T00:00:00Z'
+                    : null,
+                scheduled_time: document.getElementById('scheduledtime').value || '',
+                equipment_description: document.getElementById('equipmentdescription').value || '',
+                assigned_month: document.getElementById('assignedmonth').value 
+                    ? document.getElementById('assignedmonth').value.slice(0, 7) 
+                    : '',
+                amount: document.getElementById('amount').value 
+                    ? parseFloat(document.getElementById('amount').value) 
+                    : null,
+                master_id: document.getElementById('masterid').value 
+                    ? parseInt(document.getElementById('masterid').value) 
+                    : null
+            };
+
+            // Удаляем пустые поля
+            if (!visitData.contract_number) delete visitData.contract_number;
+            if (!visitData.contract_date) delete visitData.contract_date;
+            if (!visitData.scheduled_date) delete visitData.scheduled_date;
+            if (!visitData.scheduled_time) delete visitData.scheduled_time;
+            if (!visitData.equipment_description) delete visitData.equipment_description;
+            if (!visitData.assigned_month) delete visitData.assigned_month;
+            if (visitData.amount === null) delete visitData.amount;
+            if (visitData.master_id === null) delete visitData.master_id;
             
-            // Преобразование типов
-            if (data.masterid === '') delete data.masterid;
-            if (data.building === '') delete data.building;
-            if (data.appartmentnumber === '') delete data.appartmentnumber;
-            if (data.amount === '') delete data.amount;
-            if (data.scheduleddate === '') delete data.scheduleddate;
-            if (data.assignedmonth) data.assignedmonth = data.assignedmonth.slice(0, 7);
+            if (visitData.address.building === null) delete visitData.address.building;
+            if (visitData.address.appartment_number === null) delete visitData.address.appartment_number;
             
+            console.log('Отправка данных:', JSON.stringify(visitData, null, 2));
+
             try {
-                const endpoint = currentVisitId ? `${API_URL}/visits/${currentVisitId}` : `${API_URL}/visits`;
+                const endpoint = currentVisitId 
+                    ? `${API_URL}/visit/visits/${currentVisitId}` 
+                    : `${API_URL}/visit/visits`;
+                
                 const method = currentVisitId ? 'PUT' : 'POST';
                 
                 const res = await fetch(endpoint, {
@@ -325,18 +764,25 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(visitData)
                 });
                 
                 if (res.ok) {
                     closeModal();
-                    loadData();
+                    await loadData();
                     alert(currentVisitId ? 'Визит обновлен' : 'Визит создан');
                 } else {
-                    const error = await res.json();
-                    alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+                    const errorText = await res.text();
+                    console.error('Ошибка сервера:', errorText);
+                    try {
+                        const error = JSON.parse(errorText);
+                        alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+                    } catch {
+                        alert('Ошибка сервера: ' + errorText);
+                    }
                 }
             } catch (error) {
+                console.error('Ошибка сети:', error);
                 alert('Ошибка сети: ' + error.message);
             }
         }
@@ -351,13 +797,13 @@
             if (!confirm('Удалить этот визит?')) return;
             
             try {
-                const res = await fetch(`${API_URL}/visits/${id}`, {
+                const res = await fetch(`${API_URL}/visit/visits/${id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                 });
                 
                 if (res.ok) {
-                    loadData();
+                    await loadData();
                     alert('Визит удален');
                 } else {
                     alert('Ошибка удаления');

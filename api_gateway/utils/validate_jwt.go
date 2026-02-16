@@ -5,12 +5,29 @@ import (
 	"api-gateway/model"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func ValidateJWT(tokenString string) (*model.CustomClaims, error) {
+func ValidateJWT(ctx *gin.Context) (*model.CustomClaims, error) {
 	claims := &model.CustomClaims{}
+	tokenReq := ctx.Request.Header.Get("Authorization")
+
+	tokenString := ""
+
+	if tokenReq != "" {
+		tokenString = strings.TrimPrefix(tokenReq, "Bearer ")
+	}
+
+	if tokenString == "" {
+		tokenString = ctx.Query("token")
+	}
+
+	if tokenString == "" {
+		return nil, fmt.Errorf("missing authorization token")
+	}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"time"
 	"visit-service/model"
 
 	"gorm.io/gorm"
@@ -14,15 +15,17 @@ func NewVisitRepository(db *gorm.DB) *VisitRepository {
 	return &VisitRepository{DB: db}
 }
 
-func (r *VisitRepository) CreateVisit(visit *model.Visit, address *model.Address, client *model.Client) error {
-	if err := r.DB.Create(client).Error; err != nil {
-		return err
-	}
+func (r *VisitRepository) CreateClient(client *model.Client) error {
+	err := r.DB.Create(client).Error
+	return err
+}
 
-	if err := r.DB.Create(address).Error; err != nil {
-		return err
-	}
+func (r *VisitRepository) CreateAddress(address *model.Address) error {
+	err := r.DB.Create(address).Error
+	return err
+}
 
+func (r *VisitRepository) CreateVisit(visit *model.Visit) error {
 	err := r.DB.Create(visit).Error
 	return err
 }
@@ -30,15 +33,16 @@ func (r *VisitRepository) CreateVisit(visit *model.Visit, address *model.Address
 func (r *VisitRepository) GetVisits() ([]model.Visit, error) {
 	var visits []model.Visit
 
-	err := r.DB.Raw(`
-		SELECT v.* FROM visits v
-		JOIN addresses ad ON (
-			ad.id = v.address_id
-		)
-		JOIN clients cl ON (
-			cl.id = v.client_id
-		)
-	`).Scan(&visits).Error
+	err := r.DB.
+		Preload("Client").
+		Preload("Address").
+		Where("deleted_at IS NULL").
+		Find(&visits).Error
 
 	return visits, err
+}
+
+func (r *VisitRepository) DeleteVisit(id uint) error {
+	err := r.DB.Table("visits").Where("id = ?", id).Update("deleted_at", time.Now()).Error
+	return err
 }

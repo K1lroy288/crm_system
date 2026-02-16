@@ -8,8 +8,10 @@ import (
 )
 
 type Config struct {
-	Port string
-	DB   DBConfig
+	Port            string
+	DB              DBConfig
+	UserServiceHost string
+	UserServicePort string
 }
 
 type DBConfig struct {
@@ -36,7 +38,9 @@ func GetConfig() *Config {
 func loadConfig() *Config {
 	once.Do(func() {
 		instance = &Config{
-			Port: os.Getenv("APP_PORT"),
+			Port:            os.Getenv("APP_PORT"),
+			UserServiceHost: os.Getenv("USER_SERVICE_HOST"),
+			UserServicePort: os.Getenv("USER_SERVICE_PORT"),
 			DB: DBConfig{
 				Host:     os.Getenv("DB_HOST"),
 				User:     os.Getenv("DB_USER"),

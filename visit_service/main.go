@@ -6,9 +6,13 @@ import (
 	"log"
 	"net/http"
 	"visit-service/config"
+	"visit-service/handler"
 	"visit-service/repository"
+	"visit-service/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 const migrationsDir = "migrations"
@@ -29,11 +33,29 @@ func main() {
 		log.Fatalf("Failed to apply migrations: %v", err)
 	}
 
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	repo := repository.NewVisitRepository(db)
+	service := service.NewVisitService(repo)
+	handler := handler.NewVisitHandler(service)
+
 	r := gin.Default()
 
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "User service is up!")
 	})
+
+	api := r.Group("/visit")
+	{
+		api.GET("/visits", handler.GetVisits)
+
+		api.POST("/visits", handler.CreateVisit)
+
+		api.DELETE("/visits/:id", handler.DeleteVisit)
+	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	r.Run(addr)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,26 +27,10 @@ func main() {
 	})
 
 	r.GET("/table", func(ctx *gin.Context) {
-		token := ctx.Request.Header.Get("Authorization")
-		tokenString := ""
-
-		if token != "" {
-			tokenString = strings.TrimPrefix(token, "Bearer ")
-		}
-
-		if tokenString == "" {
-			tokenString = ctx.Query("token")
-		}
-
-		if tokenString == "" {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization token"})
-			return
-		}
-
-		_, err := utils.ValidateJWT(tokenString)
+		_, err := utils.ValidateJWT(ctx)
 		if err != nil {
 			log.Printf("Invalid token: %v", err)
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
 			return
 		}
 
@@ -68,26 +51,10 @@ func main() {
 	api2 := r.Group("/user")
 	{
 		api2.GET("/masters", func(ctx *gin.Context) {
-			token := ctx.Request.Header.Get("Authorization")
-			tokenString := ""
-
-			if token != "" {
-				tokenString = strings.TrimPrefix(token, "Bearer ")
-			}
-
-			if tokenString == "" {
-				tokenString = ctx.Query("token")
-			}
-
-			if tokenString == "" {
-				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization token"})
-				return
-			}
-
-			_, err := utils.ValidateJWT(tokenString)
+			_, err := utils.ValidateJWT(ctx)
 			if err != nil {
 				log.Printf("Invalid token: %v", err)
-				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
 				return
 			}
 
@@ -95,32 +62,41 @@ func main() {
 		})
 	}
 
-	r.GET("/visits", func(ctx *gin.Context) {
-		token := ctx.Request.Header.Get("Authorization")
-		tokenString := ""
+	api3 := r.Group("/visit")
+	{
+		api3.GET("/visits", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
 
-		if token != "" {
-			tokenString = strings.TrimPrefix(token, "Bearer ")
-		}
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
+		})
 
-		if tokenString == "" {
-			tokenString = ctx.Query("token")
-		}
+		api3.POST("/visits", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
 
-		if tokenString == "" {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization token"})
-			return
-		}
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
+		})
 
-		_, err := utils.ValidateJWT(tokenString)
-		if err != nil {
-			log.Printf("Invalid token: %v", err)
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			return
-		}
+		api3.DELETE("/visits/:id", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
 
-		handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
-	})
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
+		})
+	}
 
 	addr := fmt.Sprintf(":%s", cfg.AppPort)
 	r.Run(addr)
