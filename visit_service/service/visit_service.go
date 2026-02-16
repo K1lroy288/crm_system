@@ -157,3 +157,43 @@ func (s *VisitService) DeleteVisit(idString string) error {
 
 	return err
 }
+
+func (s *VisitService) UpdateVisit(id uint, visitDTO *model.VisitDTO) error {
+	existingVisit, err := s.repository.GetVisitByID(id)
+	if err != nil {
+		return fmt.Errorf("visit not found: %w", err)
+	}
+
+	existingVisit.Client.FirstName = visitDTO.Client.FirstName
+	existingVisit.Client.LastName = visitDTO.Client.LastName
+	existingVisit.Client.Surname = visitDTO.Client.Surname
+	existingVisit.Client.Phone = visitDTO.Client.Phone
+
+	if err := s.repository.UpdateClient(&existingVisit.Client); err != nil {
+		return err
+	}
+
+	existingVisit.Address.City = visitDTO.Address.City
+	existingVisit.Address.Locality = visitDTO.Address.Locality
+	existingVisit.Address.Region = visitDTO.Address.Region
+	existingVisit.Address.Street = visitDTO.Address.Street
+	existingVisit.Address.HouseNumber = visitDTO.Address.HouseNumber
+	existingVisit.Address.Letter = visitDTO.Address.Letter
+	existingVisit.Address.Building = visitDTO.Address.Building
+	existingVisit.Address.AppartmentNumber = visitDTO.Address.AppartmentNumber
+
+	if err := s.repository.UpdateAddress(&existingVisit.Address); err != nil {
+		return err
+	}
+
+	existingVisit.ContractNumber = visitDTO.ContractNumber
+	existingVisit.ContractDate = visitDTO.ContractDate
+	existingVisit.ScheduledDate = visitDTO.ScheduledDate
+	existingVisit.ScheduledTime = visitDTO.ScheduledTime
+	existingVisit.EquipmentDescription = visitDTO.EquipmentDescription
+	existingVisit.AssignedMonth = visitDTO.AssignedMonth
+	existingVisit.Amount = visitDTO.Amount
+	existingVisit.MasterID = visitDTO.MasterID
+
+	return s.repository.UpdateVisit(&existingVisit)
+}

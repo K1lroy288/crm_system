@@ -9,6 +9,7 @@ import (
 
 type Visit struct {
 	gorm.Model
+	ID                   uint `gorm:"primary key; not null"`
 	ClientID             uint `gorm:"not null"`
 	MasterID             *uint
 	AddressID            uint       `gorm:"not null"`

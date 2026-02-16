@@ -55,6 +55,8 @@ func main() {
 		api.POST("/visits", handler.CreateVisit)
 
 		api.DELETE("/visits/:id", handler.DeleteVisit)
+
+		api.PUT("/visits/:id", handler.UpdateVisit)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

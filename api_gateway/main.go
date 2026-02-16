@@ -96,6 +96,17 @@ func main() {
 
 			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
 		})
+
+		api3.PUT("/visits/:id", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.VisitServiceHost, cfg.VisitServicePort)
+		})
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.AppPort)

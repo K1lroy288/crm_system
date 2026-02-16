@@ -32,7 +32,7 @@ func (h *VisitHandler) GetVisits(ctx *gin.Context) {
 func (h *VisitHandler) CreateVisit(ctx *gin.Context) {
 	var req model.VisitDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		log.Printf("Invalid JSON at login request: %v", err)
+		log.Printf("Invalid JSON at create visit request: %v", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
@@ -61,4 +61,31 @@ func (h *VisitHandler) DeleteVisit(ctx *gin.Context) {
 		return
 	}
 
+	ctx.Status(http.StatusNoContent)
+}
+
+func (h *VisitHandler) UpdateVisit(ctx *gin.Context) {
+	var req model.VisitDTO
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid JSON at update visit request: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+
+	visitID := ctx.Param("id")
+	visitIDInt, err := strconv.Atoi(visitID)
+	if err != nil {
+		log.Printf("error parse id url param: %v", err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.UpdateVisit(uint(visitIDInt), &req)
+	if err != nil {
+		log.Printf("Update visit error: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
 }
