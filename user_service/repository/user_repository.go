@@ -59,3 +59,9 @@ func (r *UserRepository) GetMastersByIDs(masterIDs []uint) ([]model.User, error)
 
 	return masters, err
 }
+
+func (r *UserRepository) GetUserInfo(id uint) (model.User, error) {
+	var user model.User
+	err := r.DB.Model(&model.User{ID: id}).Scan(&user).Error
+	return user, err
+}

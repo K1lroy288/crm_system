@@ -58,11 +58,12 @@ func main() {
 
 	api2 := r.Group("/user")
 	{
-		api2.GET(":lastname", handler.GetUserByLastname)
 
 		api2.GET("/masters", handler.GetMasters)
 
 		api2.POST("/mastersByIDs", handler.GetMastersByIDs)
+
+		api2.GET("/:id", handler.GetUserInfo)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

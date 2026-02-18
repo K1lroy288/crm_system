@@ -60,6 +60,28 @@ func main() {
 
 			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
 		})
+
+		api2.GET("/profile", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			ctx.HTML(http.StatusOK, "profile.html", nil)
+		})
+
+		api2.GET("/:id", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
 	}
 
 	api3 := r.Group("/visit")

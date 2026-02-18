@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"user-service/model"
 	"user-service/service"
 	"user-service/utils"
@@ -20,7 +21,7 @@ func NewUserHandler(s *service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) Login(ctx *gin.Context) {
-	var req model.UserDTO
+	var req model.AuthDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		log.Printf("Invalid JSON at login request: %v", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
@@ -52,7 +53,7 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 }
 
 func (h *UserHandler) CreateUser(ctx *gin.Context) {
-	var req model.UserDTO
+	var req model.AuthDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		log.Printf("Invalid JSON at register request: %v", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON at register request"})
@@ -123,4 +124,23 @@ func (h *UserHandler) GetMastersByIDs(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, masters)
+}
+
+func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
+	id := ctx.Param("id")
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		log.Printf("error parse id url param: %v", err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.service.GetUserInfo(uint(idInt))
+	if err != nil {
+		log.Printf("error get user info: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, user)
 }

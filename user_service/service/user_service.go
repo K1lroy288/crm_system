@@ -21,13 +21,13 @@ func (s *UserService) CreateUser(user *model.User) (bool, error) {
 	return s.repo.CreateUser(user)
 }
 
-func (s *UserService) GetUserByLastname(lastname string) (*model.MasterDTO, error) {
+func (s *UserService) GetUserByLastname(lastname string) (*model.UserDTO, error) {
 	user, err := s.repo.GetUserByLastname(lastname)
 	if err != nil {
 		return nil, err
 	}
 
-	userDTO := &model.MasterDTO{
+	userDTO := &model.UserDTO{
 		ID:        user.ID,
 		Username:  user.Username,
 		FirstName: user.FirstName,
@@ -36,15 +36,15 @@ func (s *UserService) GetUserByLastname(lastname string) (*model.MasterDTO, erro
 	return userDTO, nil
 }
 
-func (s *UserService) GetMasters() ([]model.MasterDTO, error) {
+func (s *UserService) GetMasters() ([]model.UserDTO, error) {
 	masters, err := s.repo.GetMasters()
 	if err != nil {
 		return nil, err
 	}
 
-	var mastersDTO []model.MasterDTO
+	var mastersDTO []model.UserDTO
 	for _, master := range masters {
-		masterDTO := &model.MasterDTO{
+		masterDTO := &model.UserDTO{
 			ID:        master.ID,
 			Username:  master.Username,
 			FirstName: master.FirstName,
@@ -57,15 +57,15 @@ func (s *UserService) GetMasters() ([]model.MasterDTO, error) {
 	return mastersDTO, nil
 }
 
-func (s *UserService) GetMastersByIDs(mastersIDs []uint) ([]model.MasterDTO, error) {
+func (s *UserService) GetMastersByIDs(mastersIDs []uint) ([]model.UserDTO, error) {
 	masters, err := s.repo.GetMastersByIDs(mastersIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	var mastersDTO []model.MasterDTO
+	var mastersDTO []model.UserDTO
 	for _, master := range masters {
-		masterDTO := &model.MasterDTO{
+		masterDTO := &model.UserDTO{
 			ID:        master.ID,
 			Username:  master.Username,
 			FirstName: master.FirstName,
@@ -76,4 +76,20 @@ func (s *UserService) GetMastersByIDs(mastersIDs []uint) ([]model.MasterDTO, err
 	}
 
 	return mastersDTO, nil
+}
+
+func (s *UserService) GetUserInfo(id uint) (*model.UserDTO, error) {
+	user, err := s.repo.GetUserInfo(id)
+	if err != nil {
+		return nil, err
+	}
+
+	userDTO := &model.UserDTO{
+		ID:        user.ID,
+		Username:  user.Username,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	}
+
+	return userDTO, err
 }
