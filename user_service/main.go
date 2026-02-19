@@ -64,6 +64,10 @@ func main() {
 		api2.POST("/mastersByIDs", handler.GetMastersByIDs)
 
 		api2.GET("/:id", handler.GetUserInfo)
+
+		api2.PUT("/:id", handler.UpdateUserInfo)
+
+		api2.PUT("/password", handler.ChangePassword)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

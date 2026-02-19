@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -143,4 +144,62 @@ func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, user)
+}
+
+func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
+	var req model.UserDTO
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid JSON at update user info request: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+
+	id := ctx.Param("id")
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		log.Printf("error parse id url param: %v", err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	req.ID = uint(idInt)
+
+	err = h.service.UpdateUserInfo(req)
+	if err != nil {
+		log.Printf("Error update user info: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+func (h *UserHandler) ChangePassword(ctx *gin.Context) {
+	var req model.PasswordDTO
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid JSON at update user info request: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+
+	claims, err := utils.ValidateJWT(ctx)
+	if err != nil {
+		log.Printf("Invalid jwt token change password: %v", err)
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
+	err = h.service.ChangePassword(claims.UserID, req)
+	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			log.Printf("Invalid current password")
+			ctx.Status(http.StatusBadRequest)
+			return
+		}
+		log.Printf("change password error: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
 }

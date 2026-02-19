@@ -92,7 +92,7 @@
         /* Информационные поля */
         .info-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -160,34 +160,6 @@
             margin-top: 20px;
         }
         
-        /* Статистика */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .stat-card {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #007AFF;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #666;
-        }
-        
         /* Уведомления */
         .message {
             padding: 12px;
@@ -225,39 +197,13 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        /* Таблица активности */
-        .activity-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        
-        .activity-table th {
-            text-align: left;
-            padding: 12px;
-            background: #f8f9fa;
-            color: #555;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        .activity-table td {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            color: #666;
-        }
-        
-        .activity-table tr:hover {
-            background: #f9f9f9;
-        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>👤 Личный кабинет</h1>
         <div style="display: flex; gap: 10px;">
-            <a href="/table" class="btn btn-outline">← К визитам</a>
+            <button class="btn btn-outline" onclick="goBack()">← Назад</button>
             <button class="btn btn-red" onclick="logout()">Выйти</button>
         </div>
     </div>
@@ -280,6 +226,10 @@
         <div class="section-title">📋 Основная информация</div>
         <div class="info-grid">
             <div class="info-item">
+                <div class="info-label">Имя пользователя</div>
+                <div class="info-value" id="displayUsername">-</div>
+            </div>
+            <div class="info-item">
                 <div class="info-label">Имя</div>
                 <div class="info-value" id="displayFirstName">-</div>
             </div>
@@ -298,6 +248,10 @@
         <!-- Форма редактирования профиля -->
         <div id="editForm" class="edit-form">
             <h3 style="margin-bottom: 15px;">Редактирование профиля</h3>
+            <div class="form-group">
+                <label>Имя пользователя</label>
+                <input type="text" id="editUsername" placeholder="Введите имя пользователя">
+            </div>
             <div class="form-group">
                 <label>Имя</label>
                 <input type="text" id="editFirstName" placeholder="Введите имя">
@@ -332,47 +286,6 @@
                 <button class="btn btn-outline" onclick="cancelPassword()">Отмена</button>
             </div>
         </div>
-
-        <!-- Статистика (только для мастеров) -->
-        <div id="masterStats" style="display: none;">
-            <div class="section-title">📊 Статистика</div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalVisits">0</div>
-                    <div class="stat-label">Всего визитов</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="completedVisits">0</div>
-                    <div class="stat-label">Выполнено</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalAmount">0 ₽</div>
-                    <div class="stat-label">Общая сумма</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="avgAmount">0 ₽</div>
-                    <div class="stat-label">Средний чек</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Последние визиты (только для мастеров) -->
-        <div id="recentVisits" style="display: none;">
-            <div class="section-title">🕒 Последние визиты</div>
-            <table class="activity-table">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Клиент</th>
-                        <th>Адрес</th>
-                        <th>Сумма</th>
-                    </tr>
-                </thead>
-                <tbody id="recentVisitsBody">
-                    <tr><td colspan="4" style="text-align: center;">Нет данных</td></tr>
-                </tbody>
-            </table>
-        </div>
     </div>
 
     <script>
@@ -384,8 +297,18 @@
             window.location.href = '/';
         }
 
-        // Функция для получения ID пользователя из токена (на случай если нет в localStorage)
-        function getUserIdFromToken() {
+        // Функция возврата на страницу визитов с токеном
+        function goBack() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            window.location.href = `/table?token=${encodeURIComponent(token)}`;
+        }
+
+        // Функция для получения данных из JWT токена
+        function getTokenData() {
             const token = localStorage.getItem('auth_token');
             if (!token) return null;
             
@@ -397,7 +320,19 @@
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const payload = JSON.parse(atob(base64));
                 
-                return payload.user_id || payload.id || payload.sub || null;
+                let roles = [];
+                if (payload.roles) {
+                    roles = payload.roles;
+                } else if (payload.Roles) {
+                    roles = payload.Roles;
+                }
+                
+                return {
+                    userId: payload.user_id || payload.id || payload.sub,
+                    username: payload.username,
+                    roles: roles
+                };
+                
             } catch (e) {
                 console.error('Error decoding token:', e);
                 return null;
@@ -409,27 +344,14 @@
             showLoader(true);
             try {
                 const token = localStorage.getItem('auth_token');
+                const tokenData = getTokenData();
                 
-                // Получаем ID пользователя из localStorage (переданный с table.html)
-                let userId = localStorage.getItem('profile_user_id');
-                
-                // Если нет в localStorage, пробуем получить из токена
-                if (!userId) {
-                    userId = getUserIdFromToken();
-                    console.log('Got user ID from token:', userId);
-                } else {
-                    console.log('Got user ID from localStorage:', userId);
-                    // Очищаем localStorage после использования
-                    localStorage.removeItem('profile_user_id');
-                }
+                let userId = localStorage.getItem('profile_user_id') || tokenData?.userId;
                 
                 if (!userId) {
                     throw new Error('Не удалось определить ID пользователя');
                 }
                 
-                console.log('Loading user profile for ID:', userId);
-                
-                // Делаем запрос к /user/{id} с токеном
                 const response = await fetch(`${API_URL}/user/${userId}?token=${encodeURIComponent(token)}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -444,23 +366,15 @@
                 }
                 
                 currentUser = await response.json();
-                console.log('User data received:', currentUser);
+                currentUser.roles = tokenData?.roles || currentUser.roles || [];
                 
                 displayUserInfo();
                 
-                // Если пользователь мастер - загружаем статистику
-                if (currentUser.roles?.includes('master')) {
-                    loadMasterStats(userId);
-                    document.getElementById('masterStats').style.display = 'block';
-                    document.getElementById('recentVisits').style.display = 'block';
-                }
-                
             } catch (error) {
-                console.error('Error loading profile:', error);
                 showMessage('error', 'Ошибка загрузки: ' + error.message);
-                // Убрал автоматический редирект на /table
             } finally {
                 showLoader(false);
+                localStorage.removeItem('profile_user_id');
             }
         }
 
@@ -469,81 +383,28 @@
             const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim();
             document.getElementById('fullName').textContent = fullName || 'Пользователь';
             document.getElementById('username').textContent = `@${currentUser.username || 'username'}`;
-            document.getElementById('role').textContent = currentUser.roles?.join(', ') || 'Пользователь';
             
-            // Отображение полей
+            if (currentUser.roles && currentUser.roles.length > 0) {
+                const roleNames = {
+                    'admin': 'Администратор',
+                    'master': 'Мастер',
+                    'manager': 'Менеджер',
+                    'viewer': 'Наблюдатель',
+                    'superadmin': 'Супер-администратор'
+                };
+                const displayRoles = currentUser.roles.map(role => roleNames[role] || role).join(', ');
+                document.getElementById('role').textContent = displayRoles;
+            } else {
+                document.getElementById('role').textContent = 'Пользователь';
+            }
+            
+            document.getElementById('displayUsername').textContent = currentUser.username || '-';
             document.getElementById('displayFirstName').textContent = currentUser.first_name || '-';
             document.getElementById('displayLastName').textContent = currentUser.last_name || '-';
             
-            // Заполнение форм
+            document.getElementById('editUsername').value = currentUser.username || '';
             document.getElementById('editFirstName').value = currentUser.first_name || '';
             document.getElementById('editLastName').value = currentUser.last_name || '';
-        }
-
-        // Загрузка статистики мастера
-        async function loadMasterStats(userId) {
-            try {
-                const token = localStorage.getItem('auth_token');
-                
-                const response = await fetch(`${API_URL}/visit/masters/${userId}/stats?token=${encodeURIComponent(token)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const stats = await response.json();
-                    document.getElementById('totalVisits').textContent = stats.total_visits || 0;
-                    document.getElementById('completedVisits').textContent = stats.completed_visits || 0;
-                    document.getElementById('totalAmount').textContent = 
-                        (stats.total_amount || 0).toLocaleString('ru-RU') + ' ₽';
-                    document.getElementById('avgAmount').textContent = 
-                        (stats.avg_amount || 0).toLocaleString('ru-RU') + ' ₽';
-                }
-                
-                // Загрузка последних визитов
-                const visitsResponse = await fetch(`${API_URL}/visit/masters/${userId}/recent?token=${encodeURIComponent(token)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                if (visitsResponse.ok) {
-                    const visits = await visitsResponse.json();
-                    displayRecentVisits(visits);
-                }
-                
-            } catch (error) {
-                console.error('Error loading master stats:', error);
-            }
-        }
-
-        // Отображение последних визитов
-        function displayRecentVisits(visits) {
-            const tbody = document.getElementById('recentVisitsBody');
-            tbody.innerHTML = '';
-            
-            if (!visits || visits.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Нет данных</td></tr>';
-                return;
-            }
-            
-            visits.slice(0, 5).forEach(visit => {
-                const row = document.createElement('tr');
-                const date = visit.scheduled_date ? new Date(visit.scheduled_date).toLocaleDateString('ru-RU') : '-';
-                const clientName = visit.client ? 
-                    `${visit.client.last_name || ''} ${visit.client.first_name || ''}`.trim() : '-';
-                const address = visit.address ? 
-                    `${visit.address.city || ''}, ${visit.address.street || ''} ${visit.address.house_number || ''}`.trim() : '-';
-                
-                row.innerHTML = `
-                    <td>${date}</td>
-                    <td>${clientName || '-'}</td>
-                    <td>${address || '-'}</td>
-                    <td>${visit.amount ? Number(visit.amount).toLocaleString('ru-RU') + ' ₽' : '-'}</td>
-                `;
-                tbody.appendChild(row);
-            });
         }
 
         // Показать форму редактирования
@@ -561,6 +422,7 @@
         // Отмена редактирования
         function cancelEdit() {
             document.getElementById('editForm').classList.remove('active');
+            document.getElementById('editUsername').value = currentUser.username || '';
             document.getElementById('editFirstName').value = currentUser.first_name || '';
             document.getElementById('editLastName').value = currentUser.last_name || '';
         }
@@ -576,19 +438,20 @@
         // Сохранение профиля
         async function saveProfile() {
             const updatedData = {
+                username: document.getElementById('editUsername').value,
                 first_name: document.getElementById('editFirstName').value,
                 last_name: document.getElementById('editLastName').value
             };
 
-            if (!updatedData.first_name || !updatedData.last_name) {
-                showMessage('error', 'Имя и фамилия обязательны для заполнения');
+            if (!updatedData.username || !updatedData.first_name || !updatedData.last_name) {
+                showMessage('error', 'Все поля обязательны для заполнения');
                 return;
             }
 
             showLoader(true);
             try {
                 const token = localStorage.getItem('auth_token');
-                const response = await fetch(`${API_URL}/user/profile?token=${encodeURIComponent(token)}`, {
+                const response = await fetch(`${API_URL}/user/${currentUser.id}?token=${encodeURIComponent(token)}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -597,7 +460,10 @@
                     body: JSON.stringify(updatedData)
                 });
 
-                if (!response.ok) throw new Error('Ошибка обновления');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Ошибка обновления');
+                }
                 
                 currentUser = {...currentUser, ...updatedData};
                 displayUserInfo();
@@ -662,7 +528,6 @@
             }
         }
 
-        // Вспомогательные функции
         function showLoader(show) {
             document.getElementById('loader').style.display = show ? 'block' : 'none';
         }
@@ -678,13 +543,11 @@
             }, 5000);
         }
 
-        // Выход
         function logout() {
             localStorage.removeItem('auth_token');
             window.location.href = '/';
         }
 
-        // Загрузка при старте
         loadUserProfile();
     </script>
 </body>

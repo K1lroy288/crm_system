@@ -353,6 +353,13 @@
                 
                 visits = await visitsRes.json();
                 masters = await mastersRes.json();
+
+                masters = masters.map(m => ({
+                    master_id: m.id,
+                    master_username: m.username,
+                    master_firstname: m.first_name,
+                    master_lastname: m.last_name
+                }));
                 
                 console.log('✅ Данные загружены:', {
                     visits: visits.length,

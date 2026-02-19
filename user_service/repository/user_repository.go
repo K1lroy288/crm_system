@@ -25,7 +25,7 @@ func (r *UserRepository) CreateUser(user *model.User) (bool, error) {
 
 func (r *UserRepository) GetUserByUsername(username string) (model.User, error) {
 	var user model.User
-	err := r.DB.Where("username = ?", username).First(&user).Error
+	err := r.DB.Where("username = ?", username).Preload("Roles").First(&user).Error
 	return user, err
 }
 
@@ -62,6 +62,16 @@ func (r *UserRepository) GetMastersByIDs(masterIDs []uint) ([]model.User, error)
 
 func (r *UserRepository) GetUserInfo(id uint) (model.User, error) {
 	var user model.User
+	err := r.DB.Model(&model.User{ID: id}).Scan(&user).Error
+	return user, err
+}
+
+func (r *UserRepository) UpdateUserInfo(user *model.User) error {
+	return r.DB.Save(user).Error
+}
+
+func (r *UserRepository) GetUserById(id uint) (*model.User, error) {
+	var user *model.User
 	err := r.DB.Model(&model.User{ID: id}).Scan(&user).Error
 	return user, err
 }

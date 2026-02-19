@@ -3,6 +3,8 @@ package service
 import (
 	"user-service/model"
 	"user-service/repository"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
@@ -92,4 +94,38 @@ func (s *UserService) GetUserInfo(id uint) (*model.UserDTO, error) {
 	}
 
 	return userDTO, err
+}
+
+func (s *UserService) UpdateUserInfo(userDTO model.UserDTO) error {
+	user, err := s.repo.GetUserById(userDTO.ID)
+	if err != nil {
+		return err
+	}
+
+	user.FirstName = userDTO.FirstName
+	user.LastName = userDTO.LastName
+	user.Username = userDTO.Username
+
+	return s.repo.UpdateUserInfo(user)
+}
+
+func (s *UserService) ChangePassword(id uint, passDTO model.PasswordDTO) error {
+	user, err := s.repo.GetUserById(id)
+	if err != nil {
+		return err
+	}
+
+	if err := bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(passDTO.CurrPass)); err != nil {
+		return err
+	}
+
+	newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(passDTO.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user.PasswordHash = newHashedPassword
+
+	err = s.repo.UpdateUserInfo(user)
+	return err
 }
