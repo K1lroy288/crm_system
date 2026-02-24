@@ -63,7 +63,11 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3425';
+        // ✅ ДИНАМИЧЕСКОЕ ОПРЕДЕЛЕНИЕ API_URL
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        
+        console.log('🌐 Connecting to API:', API_URL);
+        
         const forms = { login: document.getElementById('login-section'), register: document.getElementById('register-section') };
         const messages = { login: document.getElementById('login-message'), register: document.getElementById('register-message') };
         const loaders = { login: document.getElementById('login-loader'), register: document.getElementById('register-loader') };
@@ -84,23 +88,6 @@
             localStorage.setItem('auth_token', token);
             // Редирект с токеном в query параметре
             window.location.href = `/table?token=${encodeURIComponent(token)}`;
-        }
-
-        // Функция для редиректа через POST форму (резервный вариант)
-        function redirectWithPostForm(url, token) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = url;
-            form.style.display = 'none';
-            
-            const tokenInput = document.createElement('input');
-            tokenInput.name = 'token';
-            tokenInput.value = token;
-            form.appendChild(tokenInput);
-            
-            document.body.appendChild(form);
-            console.log('Редирект через POST форму (fallback)');
-            form.submit();
         }
 
         // Проверка авторизации при загрузке страницы

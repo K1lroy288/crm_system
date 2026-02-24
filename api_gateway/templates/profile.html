@@ -289,7 +289,10 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3425';
+        // ✅ ДИНАМИЧЕСКОЕ ОПРЕДЕЛЕНИЕ API_URL
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        console.log('🌐 Connecting to API:', API_URL);
+        
         let currentUser = null;
 
         // Проверка авторизации
@@ -352,6 +355,8 @@
                     throw new Error('Не удалось определить ID пользователя');
                 }
                 
+                console.log('📡 Fetching user data from:', `${API_URL}/user/${userId}?token=...`);
+                
                 const response = await fetch(`${API_URL}/user/${userId}?token=${encodeURIComponent(token)}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -371,6 +376,7 @@
                 displayUserInfo();
                 
             } catch (error) {
+                console.error('❌ Error:', error);
                 showMessage('error', 'Ошибка загрузки: ' + error.message);
             } finally {
                 showLoader(false);
@@ -451,6 +457,9 @@
             showLoader(true);
             try {
                 const token = localStorage.getItem('auth_token');
+                
+                console.log('📤 Saving profile:', updatedData);
+                
                 const response = await fetch(`${API_URL}/user/${currentUser.id}?token=${encodeURIComponent(token)}`, {
                     method: 'PUT',
                     headers: {
@@ -471,6 +480,7 @@
                 showMessage('success', 'Профиль успешно обновлен');
                 
             } catch (error) {
+                console.error('❌ Save error:', error);
                 showMessage('error', 'Ошибка: ' + error.message);
             } finally {
                 showLoader(false);
@@ -501,6 +511,9 @@
             showLoader(true);
             try {
                 const token = localStorage.getItem('auth_token');
+                
+                console.log('🔐 Changing password');
+                
                 const response = await fetch(`${API_URL}/user/password?token=${encodeURIComponent(token)}`, {
                     method: 'PUT',
                     headers: {
@@ -522,6 +535,7 @@
                 showMessage('success', 'Пароль успешно изменен');
                 
             } catch (error) {
+                console.error('❌ Password error:', error);
                 showMessage('error', error.message);
             } finally {
                 showLoader(false);
@@ -545,9 +559,11 @@
 
         function logout() {
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('profile_user_id');
             window.location.href = '/';
         }
 
+        // Загрузка при старте
         loadUserProfile();
     </script>
 </body>
