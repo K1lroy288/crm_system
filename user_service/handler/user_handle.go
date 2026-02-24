@@ -10,7 +10,9 @@ import (
 	"user-service/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type UserHandler struct {
@@ -53,34 +55,35 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
-func (h *UserHandler) CreateUser(ctx *gin.Context) {
-	var req model.AuthDTO
+/* func (h *UserHandler) CreateUser(ctx *gin.Context) {
+	var req model.UserDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		log.Printf("Invalid JSON at register request: %v", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON at register request"})
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Printf("Hashed password generation failed: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process registration"})
+} */
+
+func (h *UserHandler) CreateUser(ctx *gin.Context) {
+	var req model.UserDTO
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid JSON at register request: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON at register request"})
 		return
 	}
 
-	user := model.User{
-		Username:     req.Username,
-		PasswordHash: hashedPassword,
-	}
-	exist, err := h.service.CreateUser(&user)
+	err := h.service.CreateUser(req)
 	if err != nil {
-		log.Printf("Exist user check failed: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
-		return
-	}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			log.Printf("Duplicate username: %v", err)
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Username already exists"})
+			return
+		}
 
-	if exist {
-		ctx.JSON(http.StatusConflict, gin.H{"error": "User with such username already exists"})
+		log.Printf("create user error: %v", err)
+		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -146,7 +149,7 @@ func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, user)
 }
 
-func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
+func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 	var req model.UserDTO
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		log.Printf("Invalid JSON at update user info request: %v", err)
@@ -164,7 +167,7 @@ func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
 
 	req.ID = uint(idInt)
 
-	err = h.service.UpdateUserInfo(req)
+	err = h.service.UpdateUser(req)
 	if err != nil {
 		log.Printf("Error update user info: %v", err)
 		ctx.Status(http.StatusInternalServerError)
@@ -197,6 +200,50 @@ func (h *UserHandler) ChangePassword(ctx *gin.Context) {
 			return
 		}
 		log.Printf("change password error: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+func (h *UserHandler) GetRoles(ctx *gin.Context) {
+	roles, err := h.service.GetRoles()
+	if err != nil {
+		log.Printf("get roles error: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, roles)
+}
+
+func (h *UserHandler) GetUsers(ctx *gin.Context) {
+	users, err := h.service.GetUsers()
+	if err != nil {
+		log.Printf("get users error: %v", err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, users)
+}
+
+func (h *UserHandler) DeleteUser(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	if id == "" {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.DeleteUser(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+		log.Printf("delete user error: %v", err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"time"
 	model "user-service/model"
 
 	"gorm.io/gorm"
@@ -14,13 +15,8 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{DB: db}
 }
 
-func (r *UserRepository) CreateUser(user *model.User) (bool, error) {
-	var exist model.User
-	res := r.DB.Where("username = ?", user.Username).First(&exist).Error
-	if res != nil {
-		return res == nil, r.DB.Create(user).Error
-	}
-	return res == nil, nil
+func (r *UserRepository) CreateUser(user *model.User) error {
+	return r.DB.Create(user).Error
 }
 
 func (r *UserRepository) GetUserByUsername(username string) (model.User, error) {
@@ -66,7 +62,7 @@ func (r *UserRepository) GetUserInfo(id uint) (model.User, error) {
 	return user, err
 }
 
-func (r *UserRepository) UpdateUserInfo(user *model.User) error {
+func (r *UserRepository) UpdateUser(user *model.User) error {
 	return r.DB.Save(user).Error
 }
 
@@ -74,4 +70,26 @@ func (r *UserRepository) GetUserById(id uint) (*model.User, error) {
 	var user *model.User
 	err := r.DB.Model(&model.User{ID: id}).Scan(&user).Error
 	return user, err
+}
+
+func (r *UserRepository) GetRoles() ([]model.Role, error) {
+	var roles []model.Role
+	err := r.DB.Table("roles").Find(&roles).Error
+	return roles, err
+}
+
+func (r *UserRepository) GetUsers() ([]model.User, error) {
+	var users []model.User
+	err := r.DB.
+		Table("users").
+		Preload("Roles").
+		Where("deleted_at IS NULL").
+		Find(&users).
+		Error
+
+	return users, err
+}
+
+func (r *UserRepository) DeleteUser(id uint) error {
+	return r.DB.Model(&model.User{ID: id}).Update("deleted_at", time.Now()).Error
 }

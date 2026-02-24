@@ -21,6 +21,8 @@
         }
         .btn-red { background: #FF3B30; }
         .btn-red:hover { background: #D70015; }
+        .btn-green { background: #34C759; color: white; }
+        .btn-green:hover { background: #2B9A4B; }
         .filters { 
             display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
@@ -112,15 +114,25 @@
             color: #666;
             margin-top: 2px;
         }
+        .admin-badge {
+            background: #5856D6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📋 Визиты</h1>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn" onclick="loadVisits()">Обновить</button>
             <button class="btn" onclick="openModal('new')">+ Новый визит</button>
             <button class="btn btn-outline" onclick="goToProfile()">👤 Профиль</button>
+            <!-- Кнопка админки (будет показана через JavaScript) -->
+            <button id="admin-btn" class="btn btn-green" onclick="goToAdmin()" style="display: none;">👑 Админка</button>
             <button class="logout-btn" onclick="logout()">Выйти</button>
         </div>
     </div>
@@ -275,14 +287,15 @@
         let isLoading = false;
         let currentSortField = 'client.last_name';
         let currentSortOrder = 'asc';
+        let currentUserRoles = [];
 
         // Проверка авторизации
         if (!localStorage.getItem('auth_token')) {
             window.location.href = '/';
         }
 
-        // Функция для получения ID пользователя из токена
-        function getUserIdFromToken() {
+        // Функция для получения данных из JWT токена
+        function getTokenData() {
             const token = localStorage.getItem('auth_token');
             if (!token) return null;
             
@@ -297,11 +310,49 @@
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const payload = JSON.parse(atob(base64));
                 
-                return payload.user_id || payload.id || payload.sub || null;
+                return {
+                    userId: payload.user_id || payload.id || payload.sub,
+                    username: payload.username,
+                    roles: payload.Roles || payload.roles || []
+                };
             } catch (e) {
                 console.error('Error decoding token:', e);
                 return null;
             }
+        }
+
+        // Проверка роли админа и отображение кнопки
+        function checkAdminAccess() {
+            const tokenData = getTokenData();
+            if (tokenData && tokenData.roles) {
+                currentUserRoles = tokenData.roles;
+                console.log('🔑 User roles:', currentUserRoles);
+                
+                // Проверяем наличие роли admin
+                if (currentUserRoles.includes('admin') || currentUserRoles.includes('superadmin')) {
+                    document.getElementById('admin-btn').style.display = 'inline-block';
+                    console.log('👑 Admin access granted');
+                } else {
+                    document.getElementById('admin-btn').style.display = 'none';
+                    console.log('👤 Regular user');
+                }
+            }
+        }
+
+        // Функция перехода в админку
+        function goToAdmin() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            window.location.href = `/admin?token=${encodeURIComponent(token)}`;
+        }
+
+        // Функция для получения ID пользователя из токена
+        function getUserIdFromToken() {
+            const tokenData = getTokenData();
+            return tokenData?.userId || null;
         }
 
         // Функция перехода в профиль
@@ -864,6 +915,8 @@
             loadData();
         }
 
+        // Инициализация
+        checkAdminAccess();
         loadData();
 
         window.onclick = function(event) {

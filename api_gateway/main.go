@@ -37,6 +37,22 @@ func main() {
 		ctx.HTML(http.StatusOK, "table.html", nil)
 	})
 
+	r.GET("/admin", func(ctx *gin.Context) {
+		claims, err := utils.ValidateJWT(ctx)
+		if err != nil {
+			log.Printf("Invalid token: %v", err)
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+			return
+		}
+
+		if !utils.Contains(claims.Roles, "admin") {
+			ctx.Status(http.StatusForbidden)
+			return
+		}
+
+		ctx.HTML(http.StatusOK, "admin.html", nil)
+	})
+
 	api := r.Group("/auth")
 	{
 		api.POST("/register", func(ctx *gin.Context) {
@@ -95,6 +111,50 @@ func main() {
 		})
 
 		api2.PUT("/password", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
+
+		api2.GET("/roles", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
+
+		api2.GET("/users", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
+
+		api2.DELETE("/:id", func(ctx *gin.Context) {
+			_, err := utils.ValidateJWT(ctx)
+			if err != nil {
+				log.Printf("Invalid token: %v", err)
+				ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+				return
+			}
+
+			handler.ReverseProxy(ctx.Writer, ctx.Request, cfg.UserServiceHost, cfg.UserServicePort)
+		})
+
+		api2.POST("/users", func(ctx *gin.Context) {
 			_, err := utils.ValidateJWT(ctx)
 			if err != nil {
 				log.Printf("Invalid token: %v", err)

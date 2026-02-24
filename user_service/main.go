@@ -65,9 +65,17 @@ func main() {
 
 		api2.GET("/:id", handler.GetUserInfo)
 
-		api2.PUT("/:id", handler.UpdateUserInfo)
+		api2.PUT("/:id", handler.UpdateUser)
 
 		api2.PUT("/password", handler.ChangePassword)
+
+		api2.GET("/roles", handler.GetRoles)
+
+		api2.GET("/users", handler.GetUsers)
+
+		api2.DELETE("/:id", handler.DeleteUser)
+
+		api2.POST("/users", handler.CreateUser)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
