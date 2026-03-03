@@ -9,10 +9,20 @@
         body { background: #f5f5f7; padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         h1 { color: #333; }
-        .btn { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .btn { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; }
         .btn:hover { background: #0056CC; }
+        .btn-outline {
+            background: white;
+            color: #007AFF;
+            border: 1px solid #007AFF;
+        }
+        .btn-outline:hover {
+            background: #f0f7ff;
+        }
         .btn-red { background: #FF3B30; }
         .btn-red:hover { background: #D70015; }
+        .btn-green { background: #34C759; color: white; }
+        .btn-green:hover { background: #2B9A4B; }
         .filters { 
             display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
@@ -104,14 +114,25 @@
             color: #666;
             margin-top: 2px;
         }
+        .admin-badge {
+            background: #5856D6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📋 Визиты</h1>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn" onclick="loadVisits()">Обновить</button>
             <button class="btn" onclick="openModal('new')">+ Новый визит</button>
+            <button class="btn btn-outline" onclick="goToProfile()">👤 Профиль</button>
+            <!-- Кнопка админки (будет показана через JavaScript) -->
+            <button id="admin-btn" class="btn btn-green" onclick="goToAdmin()" style="display: none;">👑 Админка</button>
             <button class="logout-btn" onclick="logout()">Выйти</button>
         </div>
     </div>
@@ -256,17 +277,102 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3425';
+        // ✅ ДИНАМИЧЕСКОЕ ОПРЕДЕЛЕНИЕ API_URL
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        console.log('🌐 Connecting to API:', API_URL);
+        
         let visits = [];
         let masters = [];
         let currentVisitId = null;
         let isLoading = false;
         let currentSortField = 'client.last_name';
         let currentSortOrder = 'asc';
+        let currentUserRoles = [];
 
         // Проверка авторизации
         if (!localStorage.getItem('auth_token')) {
-            window.location.href = '/auth.html';
+            window.location.href = '/';
+        }
+
+        // Функция для получения данных из JWT токена
+        function getTokenData() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return null;
+            
+            try {
+                const parts = token.split('.');
+                if (parts.length !== 3) {
+                    console.error('Invalid token format');
+                    return null;
+                }
+                
+                const base64Url = parts[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(base64));
+                
+                return {
+                    userId: payload.user_id || payload.id || payload.sub,
+                    username: payload.username,
+                    roles: payload.Roles || payload.roles || []
+                };
+            } catch (e) {
+                console.error('Error decoding token:', e);
+                return null;
+            }
+        }
+
+        // Проверка роли админа и отображение кнопки
+        function checkAdminAccess() {
+            const tokenData = getTokenData();
+            if (tokenData && tokenData.roles) {
+                currentUserRoles = tokenData.roles;
+                console.log('🔑 User roles:', currentUserRoles);
+                
+                // Проверяем наличие роли admin
+                if (currentUserRoles.includes('admin') || currentUserRoles.includes('superadmin')) {
+                    document.getElementById('admin-btn').style.display = 'inline-block';
+                    console.log('👑 Admin access granted');
+                } else {
+                    document.getElementById('admin-btn').style.display = 'none';
+                    console.log('👤 Regular user');
+                }
+            }
+        }
+
+        // Функция перехода в админку
+        function goToAdmin() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            window.location.href = `/admin?token=${encodeURIComponent(token)}`;
+        }
+
+        // Функция для получения ID пользователя из токена
+        function getUserIdFromToken() {
+            const tokenData = getTokenData();
+            return tokenData?.userId || null;
+        }
+
+        // Функция перехода в профиль
+        function goToProfile() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            
+            const userId = getUserIdFromToken();
+            
+            if (userId) {
+                localStorage.setItem('profile_user_id', userId);
+                console.log('✅ User ID saved to localStorage:', userId);
+            } else {
+                console.warn('⚠️ Could not get user ID from token');
+            }
+            
+            window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
         }
 
         // Загрузка данных
@@ -277,7 +383,7 @@
             try {
                 document.getElementById('table-loader').style.display = 'block';
                 
-                console.log('Загрузка данных...');
+                console.log('📡 Загрузка данных...');
                 
                 const [visitsRes, mastersRes] = await Promise.all([
                     fetch(`${API_URL}/visit/visits`, {
@@ -292,16 +398,20 @@
                 if (!mastersRes.ok) throw new Error(`Ошибка загрузки мастеров: ${mastersRes.status}`);
                 
                 visits = await visitsRes.json();
-                masters = await mastersRes.json();
+                const rawMasters = await mastersRes.json();
+
+                // Нормализация данных мастеров
+                masters = rawMasters.map(m => ({
+                    master_id: m.id,
+                    master_username: m.username,
+                    master_firstname: m.first_name,
+                    master_lastname: m.last_name
+                }));
                 
                 console.log('✅ Данные загружены:', {
                     visits: visits.length,
                     masters: masters.length
                 });
-                
-                if (visits.length > 0) {
-                    console.log('Пример структуры визита:', JSON.stringify(visits[0], null, 2));
-                }
                 
                 renderTable();
                 populateFilters();
@@ -378,13 +488,11 @@
                 let valA = getSortValue(a, field);
                 let valB = getSortValue(b, field);
                 
-                // Преобразование для числовых полей
                 if (field === 'amount') {
                     valA = Number(valA) || 0;
                     valB = Number(valB) || 0;
                 }
                 
-                // Преобразование для дат
                 if (field === 'scheduled_date' || field === 'contract_date') {
                     valA = valA ? new Date(valA).getTime() : 0;
                     valB = valB ? new Date(valB).getTime() : 0;
@@ -421,7 +529,6 @@
                 const scheduledDate = visit.scheduled_date ? new Date(visit.scheduled_date) : null;
                 const amount = Number(visit.amount) || 0;
                 
-                // Проверка фильтров
                 const nameMatch = !fullNameFilter || fullName.includes(fullNameFilter);
                 const phoneMatch = !phoneFilter || phone.toLowerCase().includes(phoneFilter);
                 const cityMatch = !cityFilter || city.toLowerCase().includes(cityFilter);
@@ -430,7 +537,6 @@
                 const masterMatch = !masterFilter || visit.master_id == masterFilter;
                 const monthMatch = !monthFilter || visit.assigned_month === monthFilter;
                 
-                // Фильтр по дате
                 let dateMatch = true;
                 if (dateFrom && scheduledDate) {
                     dateMatch = scheduledDate >= new Date(dateFrom);
@@ -439,7 +545,6 @@
                     dateMatch = scheduledDate <= new Date(dateTo + 'T23:59:59');
                 }
                 
-                // Фильтр по сумме
                 let amountMatch = true;
                 if (amountFrom) {
                     amountMatch = amount >= Number(amountFrom);
@@ -452,9 +557,7 @@
                        contractMatch && masterMatch && monthMatch && dateMatch && amountMatch;
             });
             
-            // Применяем сортировку
             const sorted = sortVisits(filtered, currentSortField, currentSortOrder);
-            
             document.getElementById('results-count').textContent = filtered.length;
             
             return sorted;
@@ -495,7 +598,6 @@
                 const month = visit.assigned_month || '-';
                 const amount = visit.amount ? Number(visit.amount).toLocaleString('ru-RU') + ' ₽' : '-';
                 
-                // Создаем безопасную строку JSON для передачи в editVisit
                 const visitJson = JSON.stringify(visit).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
                 
                 row.innerHTML = `
@@ -525,7 +627,6 @@
                 tbody.appendChild(row);
             });
             
-            // Обновляем индикаторы сортировки в заголовках
             updateSortIndicators();
         }
 
@@ -556,7 +657,6 @@
             
             document.getElementById('sort-field').value = field;
             document.getElementById('sort-order').value = currentSortOrder;
-            
             renderTable();
         }
 
@@ -594,7 +694,6 @@
             const masterSelect = document.getElementById('filter-master');
             const monthSelect = document.getElementById('filter-month');
             
-            // Мастера
             masterSelect.innerHTML = '<option value="">Все</option>';
             
             if (masters && masters.length > 0) {
@@ -603,7 +702,6 @@
                 });
             }
             
-            // Месяцы
             const months = [...new Set(visits.map(v => v.assigned_month).filter(Boolean))].sort();
             monthSelect.innerHTML = '<option value="">Все</option>';
             months.forEach(month => {
@@ -618,7 +716,6 @@
             });
         }
 
-        // Фильтрация (обертка для совместимости)
         function filterTable() {
             renderTable();
         }
@@ -637,7 +734,6 @@
             currentVisitId = visit?.id || null;
             title.textContent = type === 'new' ? 'Новый визит' : 'Редактировать визит';
             
-            // Заполнение мастеров в форме
             const masterSelect = document.getElementById('masterid');
             masterSelect.innerHTML = '<option value="">Не выбран</option>';
             
@@ -647,7 +743,6 @@
                 });
             }
             
-            // Заполнение данных
             if (visit) {
                 document.getElementById('lastname').value = visit.client?.last_name || '';
                 document.getElementById('firstname').value = visit.client?.first_name || '';
@@ -736,7 +831,6 @@
                     : null
             };
 
-            // Удаляем пустые поля
             if (!visitData.contract_number) delete visitData.contract_number;
             if (!visitData.contract_date) delete visitData.contract_date;
             if (!visitData.scheduled_date) delete visitData.scheduled_date;
@@ -749,7 +843,7 @@
             if (visitData.address.building === null) delete visitData.address.building;
             if (visitData.address.appartment_number === null) delete visitData.address.appartment_number;
             
-            console.log('Отправка данных:', JSON.stringify(visitData, null, 2));
+            console.log('📤 Отправка данных:', JSON.stringify(visitData, null, 2));
 
             try {
                 const endpoint = currentVisitId 
@@ -770,10 +864,10 @@
                 if (res.ok) {
                     closeModal();
                     await loadData();
-                    alert(currentVisitId ? 'Визит обновлен' : 'Визит создан');
+                    alert(currentVisitId ? '✅ Визит обновлен' : '✅ Визит создан');
                 } else {
                     const errorText = await res.text();
-                    console.error('Ошибка сервера:', errorText);
+                    console.error('❌ Ошибка сервера:', errorText);
                     try {
                         const error = JSON.parse(errorText);
                         alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
@@ -782,17 +876,15 @@
                     }
                 }
             } catch (error) {
-                console.error('Ошибка сети:', error);
+                console.error('❌ Ошибка сети:', error);
                 alert('Ошибка сети: ' + error.message);
             }
         }
 
-        // Редактирование
         function editVisit(visit) {
             openModal('edit', visit);
         }
 
-        // Удаление
         async function deleteVisit(id) {
             if (!confirm('Удалить этот визит?')) return;
             
@@ -804,29 +896,29 @@
                 
                 if (res.ok) {
                     await loadData();
-                    alert('Визит удален');
+                    alert('✅ Визит удален');
                 } else {
-                    alert('Ошибка удаления');
+                    alert('❌ Ошибка удаления');
                 }
             } catch (error) {
-                alert('Ошибка сети');
+                alert('❌ Ошибка сети');
             }
         }
 
-        // Выход
         function logout() {
             localStorage.removeItem('auth_token');
-            window.location.href = '/auth.html';
+            localStorage.removeItem('profile_user_id');
+            window.location.href = '/';
         }
 
         function loadVisits() {
             loadData();
         }
 
-        // Загрузка при старте
+        // Инициализация
+        checkAdminAccess();
         loadData();
 
-        // Закрытие модального окна по клику вне
         window.onclick = function(event) {
             const modal = document.getElementById('edit-modal');
             if (event.target === modal) {

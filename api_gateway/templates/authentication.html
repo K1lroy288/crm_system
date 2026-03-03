@@ -5,65 +5,195 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Авторизация</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-        body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .container { max-width: 900px; width: 100%; }
-        .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        @media (max-width: 768px) { .cards { grid-template-columns: 1fr; } }
-        .card { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        h1 { color: #333; margin-bottom: 20px; text-align: center; }
-        h2 { color: #667eea; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; color: #555; font-size: 14px; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
-        input:focus { outline: none; border-color: #667eea; }
-        button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #5a67d8; }
-        .switch { background: white; color: #667eea; border: 1px solid #667eea; }
-        .message { padding: 10px; border-radius: 5px; margin-top: 15px; text-align: center; display: none; }
+        /* Базовые стили из нового дизайна */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { 
+            background: #f5f5f7; 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px; 
+        }
+        
+        /* Контейнер и карточка */
+        .auth-wrapper {
+            width: 100%;
+            max-width: 420px;
+        }
+        .header-title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .card { 
+            background: #ffffff; 
+            border-radius: 16px; 
+            padding: 40px 30px; 
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06); 
+        }
+        h2 { 
+            color: #111; 
+            margin-bottom: 25px; 
+            font-size: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Формы и инпуты */
+        .form-section { display: none; animation: fadeIn 0.3s ease; }
+        .active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .form-group { margin-bottom: 20px; display: flex; flex-direction: column; }
+        label { 
+            margin-bottom: 8px; 
+            color: #555; 
+            font-size: 14px; 
+            font-weight: 500;
+        }
+        input { 
+            width: 100%; 
+            padding: 12px 15px; 
+            border: 1px solid #d2d2d7; 
+            border-radius: 8px; 
+            font-size: 15px; 
+            background: #fafafa;
+            transition: all 0.2s ease;
+        }
+        input:focus { 
+            outline: none; 
+            border-color: #007AFF; 
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15); 
+        }
+        .hint { font-size: 12px; color: #86868b; margin-top: 6px; }
+
+        /* Кнопки */
+        button[type="submit"] { 
+            width: 100%; 
+            padding: 14px; 
+            background: #007AFF; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 500;
+            cursor: pointer; 
+            margin-top: 10px; 
+            transition: background 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        button[type="submit"]:hover { background: #0056CC; }
+        button[type="submit"]:disabled { background: #80bfff; cursor: not-allowed; }
+        
+        .switch { 
+            width: 100%; 
+            padding: 14px; 
+            background: transparent; 
+            color: #007AFF; 
+            border: 1px solid #007AFF; 
+            border-radius: 8px; 
+            font-size: 15px; 
+            font-weight: 500;
+            cursor: pointer; 
+            margin-top: 15px; 
+            transition: all 0.2s;
+        }
+        .switch:hover { background: #f0f7ff; }
+
+        /* Сообщения и лоадер */
+        .message { 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-top: 20px; 
+            text-align: center; 
+            display: none; 
+            font-size: 14px;
+            font-weight: 500;
+        }
         .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; display: block; }
         .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; display: block; }
-        .form-section { display: none; }
-        .active { display: block; }
-        .hint { font-size: 12px; color: #666; margin-top: 3px; }
-        .loader { display: none; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
+        
+        .loader { 
+            display: none; 
+            width: 20px; 
+            height: 20px; 
+            border: 2px solid rgba(255, 255, 255, 0.3); 
+            border-top: 2px solid #ffffff; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔐 Аутентификация</h1>
-        <div class="cards">
-            <div class="card">
-                <h2>Вход</h2>
-                <div id="login-section" class="form-section active">
-                    <form id="login-form">
-                        <div class="form-group"><label>Имя пользователя</label><input type="text" id="login-username" placeholder="Ваш username" required></div>
-                        <div class="form-group"><label>Пароль</label><input type="password" id="login-password" placeholder="Пароль" required></div>
-                        <button type="submit"><span>Войти</span><div class="loader" id="login-loader"></div></button>
-                        <button type="button" class="switch" onclick="showForm('register')">Нет аккаунта? Регистрация</button>
-                    </form>
-                    <div id="login-message" class="message"></div>
-                </div>
+    <div class="auth-wrapper">
+        <h1 class="header-title">🔐 Авторизация</h1>
+        
+        <div class="card">
+            <!-- Секция Входа -->
+            <div id="login-section" class="form-section active">
+                <h2>Вход в систему</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Имя пользователя</label>
+                        <input type="text" id="login-username" placeholder="Ваш username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="login-password" placeholder="Пароль" required>
+                    </div>
+                    <button type="submit">
+                        <span>Войти</span>
+                        <div class="loader" id="login-loader"></div>
+                    </button>
+                    <button type="button" class="switch" onclick="showForm('register')">Нет аккаунта? Регистрация</button>
+                </form>
+                <div id="login-message" class="message"></div>
             </div>
-            <div class="card">
-                <h2>Регистрация</h2>
-                <div id="register-section" class="form-section">
-                    <form id="register-form">
-                        <div class="form-group"><label>Имя пользователя</label><input type="text" id="register-username" placeholder="Придумайте username" required><div class="hint">Латинские буквы и цифры, 3-50 символов</div></div>
-                        <div class="form-group"><label>Пароль</label><input type="password" id="register-password" placeholder="Пароль" required><div class="hint">Минимум 8 символов</div></div>
-                        <div class="form-group"><label>Подтверждение пароля</label><input type="password" id="confirm-password" placeholder="Повторите пароль" required></div>
-                        <button type="submit"><span>Зарегистрироваться</span><div class="loader" id="register-loader"></div></button>
-                        <button type="button" class="switch" onclick="showForm('login')">Уже есть аккаунт? Войти</button>
-                    </form>
-                    <div id="register-message" class="message"></div>
-                </div>
+
+            <!-- Секция Регистрации -->
+            <div id="register-section" class="form-section">
+                <h2>Создать аккаунт</h2>
+                <form id="register-form">
+                    <div class="form-group">
+                        <label>Имя пользователя</label>
+                        <input type="text" id="register-username" placeholder="Придумайте username" required>
+                        <div class="hint">Латинские буквы и цифры, 3-50 символов</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="register-password" placeholder="Пароль" required>
+                        <div class="hint">Минимум 8 символов</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Подтверждение пароля</label>
+                        <input type="password" id="confirm-password" placeholder="Повторите пароль" required>
+                    </div>
+                    <button type="submit">
+                        <span>Зарегистрироваться</span>
+                        <div class="loader" id="register-loader"></div>
+                    </button>
+                    <button type="button" class="switch" onclick="showForm('login')">Уже есть аккаунт? Войти</button>
+                </form>
+                <div id="register-message" class="message"></div>
             </div>
         </div>
     </div>
 
+    <!-- ТВОЙ JS БЕЗ ИЗМЕНЕНИЙ -->
     <script>
-        const API_URL = 'http://localhost:3425';
+        // ✅ ДИНАМИЧЕСКОЕ ОПРЕДЕЛЕНИЕ API_URL
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        
+        console.log('🌐 Connecting to API:', API_URL);
+        
         const forms = { login: document.getElementById('login-section'), register: document.getElementById('register-section') };
         const messages = { login: document.getElementById('login-message'), register: document.getElementById('register-message') };
         const loaders = { login: document.getElementById('login-loader'), register: document.getElementById('register-loader') };
@@ -84,23 +214,6 @@
             localStorage.setItem('auth_token', token);
             // Редирект с токеном в query параметре
             window.location.href = `/table?token=${encodeURIComponent(token)}`;
-        }
-
-        // Функция для редиректа через POST форму (резервный вариант)
-        function redirectWithPostForm(url, token) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = url;
-            form.style.display = 'none';
-            
-            const tokenInput = document.createElement('input');
-            tokenInput.name = 'token';
-            tokenInput.value = token;
-            form.appendChild(tokenInput);
-            
-            document.body.appendChild(form);
-            console.log('Редирект через POST форму (fallback)');
-            form.submit();
         }
 
         // Проверка авторизации при загрузке страницы
@@ -274,21 +387,21 @@
         // Валидация в реальном времени
         document.getElementById('register-username').oninput = function() {
             const isValid = /^[a-zA-Z0-9]*$/.test(this.value);
-            this.style.borderColor = !isValid && this.value.length > 0 ? '#ff4757' : '#ddd';
+            this.style.borderColor = !isValid && this.value.length > 0 ? '#ff4757' : '#d2d2d7';
         };
 
         document.getElementById('register-password').oninput = function() {
             const confirmInput = document.getElementById('confirm-password');
-            this.style.borderColor = this.value.length < 8 && this.value.length > 0 ? '#ff4757' : '#ddd';
+            this.style.borderColor = this.value.length < 8 && this.value.length > 0 ? '#ff4757' : '#d2d2d7';
             
             if (confirmInput.value) {
-                confirmInput.style.borderColor = this.value !== confirmInput.value ? '#ff4757' : '#ddd';
+                confirmInput.style.borderColor = this.value !== confirmInput.value ? '#ff4757' : '#d2d2d7';
             }
         };
 
         document.getElementById('confirm-password').oninput = function() {
             const password = document.getElementById('register-password').value;
-            this.style.borderColor = this.value !== password ? '#ff4757' : '#ddd';
+            this.style.borderColor = this.value !== password ? '#ff4757' : '#d2d2d7';
         };
 
         console.log('Страница авторизации загружена');
