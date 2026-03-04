@@ -12,6 +12,7 @@ type VisitDTO struct {
 		LastName  string `json:"last_name"`
 		Surname   string `json:"surname"`
 		Phone     string `json:"phone"`
+		IsVip     bool   `json:"is_vip"`
 	} `json:"client"`
 
 	Address struct {
@@ -34,4 +35,6 @@ type VisitDTO struct {
 	AssignedMonth        string          `json:"assigned_month"`
 	Amount               decimal.Decimal `json:"amount"`
 	MasterID             *uint           `json:"master_id"`
+	Status               string          `json:"status"`
+	DispatcherComment    string          `json:"dispatcher_comment"`
 }

@@ -39,13 +39,18 @@ func main() {
 			return
 		}
 
-		if utils.Contains(claims.Roles, "dispetcher") {
+		if utils.Contains(claims.Roles, "dispatcher") {
 			ctx.HTML(http.StatusOK, "dispetcher.html", nil)
 			return
 		}
 
 		if utils.Contains(claims.Roles, "master") {
 			ctx.HTML(http.StatusOK, "master.html", nil)
+			return
+		}
+
+		if utils.Contains(claims.Roles, "admin") {
+			ctx.HTML(http.StatusOK, "admin.html", nil)
 			return
 		}
 

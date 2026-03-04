@@ -3,63 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель Менеджера | Ввод данных</title>
+    <title>Панель Менеджера | CRM</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f5f5f7; padding: 20px; }
+        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        h1 { color: #333; font-size: 24px; }
-        .btn { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        h1 { color: #333; font-size: 22px; }
+        
+        .btn { background: #007AFF; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: 500; }
         .btn:hover { background: #0056CC; }
         .btn-outline { background: white; color: #007AFF; border: 1px solid #007AFF; }
         .btn-green { background: #34C759; }
         .btn-red { background: #FF3B30; }
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .table-container { overflow-x: auto; background: white; border-radius: 10px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
-        th { background: #f8f9fa; color: #666; font-weight: 600; }
-        tr:hover { background: #f9f9f9; }
-        .vip-badge { color: #FF9500; font-weight: bold; font-size: 18px; }
-        .is-vip-row { border-left: 4px solid #FF9500; }
+
+        /* ФИЛЬТРЫ */
+        .filters-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .filters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+        .filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .filter-group label { font-size: 11px; text-transform: uppercase; color: #888; font-weight: 700; letter-spacing: 0.5px; }
+        .filter-group input, .filter-group select { padding: 9px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; }
+        .filter-row-actions { display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0; justify-content: flex-end; align-items: center; }
+
+        /* ТАБЛИЦА И СОРТИРОВКА */
+        .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        
+        th { background: #f8f9fa; color: #555; font-weight: 600; cursor: pointer; user-select: none; transition: 0.2s; white-space: nowrap; position: relative; }
+        th:hover { background: #eef1f5; color: #007AFF; }
+        
+        /* Индикаторы сортировки */
+        .sort-icon::after { content: '↕'; margin-left: 8px; opacity: 0.3; font-size: 11px; }
+        th.sort-asc .sort-icon::after { content: '↑'; opacity: 1; color: #007AFF; }
+        th.sort-desc .sort-icon::after { content: '↓'; opacity: 1; color: #007AFF; }
+        
+        .is-vip-row { background: #fffcf0; }
+        .vip-star { color: #FF9500; font-size: 16px; font-weight: bold; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+        
+        .status-created { background: #E3F2FD; color: #1976D2; }
+        .status-scheduled { background: #FFF3E0; color: #E65100; }
+        .status-in_work { background: #E1F5FE; color: #0288D1; border: 1px solid #0288D1; }
+        .status-done { background: #E8F5E9; color: #2E7D32; }
+        .status-canceled { background: #FFEBEE; color: #C62828; }
+
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 25px; border-radius: 15px; width: 95%; max-width: 900px; max-height: 95vh; overflow-y: auto; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .form-group { display: flex; flex-direction: column; gap: 5px; }
-        .form-group label { font-size: 12px; color: #888; text-transform: uppercase; }
-        .form-group input, .form-group select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
-        .mapping-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; background: #f8f9fa; margin-bottom: 5px; border-radius: 6px; }
-        .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+
+        .loader { display: none; width: 25px; height: 25px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>📝 Менеджер: Оформление заявок</h1>
-        <div style="display: flex; gap: 10px;">
-            <button class="btn btn-outline" onclick="loadData()">🔄 Обновить</button>
-            <button class="btn btn-green" onclick="openEditModal()">+ Создать вручную</button>
+        <h1>📝 Менеджер: Управление заявками</h1>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <div id="main-loader" class="loader"></div>
+            <!-- ДОБАВЛЕННАЯ КНОПКА -->
+            <button class="btn btn-outline" onclick="goToProfile()">👤 Профиль</button>
+            <button class="btn btn-green" onclick="openEditModal()">+ Новая заявка</button>
             <button class="btn" onclick="document.getElementById('excel-input').click()">📁 Импорт Excel</button>
             <input type="file" id="excel-input" style="display:none" accept=".xlsx, .xls" onchange="handleExcel(event)">
             <button class="btn btn-red" onclick="logout()">Выйти</button>
         </div>
     </div>
 
+    <!-- ФИЛЬТРЫ -->
+    <div class="filters-container">
+        <div class="filters-grid">
+            <div class="filter-group"><label>Клиент</label><input type="text" id="f-name" placeholder="Фамилия..." oninput="filterData()"></div>
+            <div class="filter-group"><label>Телефон</label><input type="text" id="f-phone" placeholder="79..." oninput="filterData()"></div>
+            <div class="filter-group"><label>Город</label><input type="text" id="f-city" placeholder="Город..." oninput="filterData()"></div>
+            <div class="filter-group"><label>Улица</label><input type="text" id="f-street" placeholder="Улица..." oninput="filterData()"></div>
+            <div class="filter-group"><label>№ Договора</label><input type="text" id="f-contract" placeholder="№..." oninput="filterData()"></div>
+            <div class="filter-group">
+                <label>Статус</label>
+                <select id="f-status" onchange="filterData()">
+                    <option value="all">Все статусы</option>
+                    <option value="created">Создана</option>
+                    <option value="scheduled">Запланирована</option>
+                    <option value="in_work">В работе</option>
+                    <option value="done">Выполнена</option>
+                    <option value="canceled">Отменена</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Приоритет</label>
+                <select id="f-vip" onchange="filterData()">
+                    <option value="all">Все клиенты</option>
+                    <option value="vip">Только VIP ⭐️</option>
+                    <option value="not_vip">Без VIP</option>
+                </select>
+            </div>
+            <div class="filter-group"><label>Договор С</label><input type="date" id="f-date-start" onchange="filterData()"></div>
+            <div class="filter-group"><label>Договор ПО</label><input type="date" id="f-date-end" onchange="filterData()"></div>
+        </div>
+        <div class="filter-row-actions">
+            <span id="counter" style="font-size: 13px; color: #666; margin-right: auto;">Записей: 0</span>
+            <button class="btn btn-outline" onclick="resetFilters()">Сбросить</button>
+            <button class="btn" onclick="loadData()">🔄 Обновить</button>
+        </div>
+    </div>
+
+    <!-- ТАБЛИЦА -->
     <div class="card">
-        <div class="loader" id="main-loader"></div>
         <div class="table-container">
             <table>
                 <thead>
-                    <tr>
-                        <th>VIP</th>
-                        <th>ФИО Клиента</th>
-                        <th>Телефон</th>
-                        <th>Адрес</th>
-                        <th>Договор №</th>
-                        <th>Дата договора</th>
-                        <th>Статус</th>
+                    <tr id="table-headers">
+                        <th onclick="setSort('is_vip')" data-field="is_vip">VIP <span class="sort-icon"></span></th>
+                        <th onclick="setSort('last_name')" data-field="last_name">Клиент <span class="sort-icon"></span></th>
+                        <th onclick="setSort('phone')" data-field="phone">Телефон <span class="sort-icon"></span></th>
+                        <th onclick="setSort('city')" data-field="city">Адрес <span class="sort-icon"></span></th>
+                        <th onclick="setSort('contract_number')" data-field="contract_number">№ Договора <span class="sort-icon"></span></th>
+                        <th onclick="setSort('contract_date')" data-field="contract_date">Дата дог. <span class="sort-icon"></span></th>
+                        <th onclick="setSort('status')" data-field="status">Статус <span class="sort-icon"></span></th>
                         <th>Действия</th>
                     </tr>
                 </thead>
@@ -68,23 +131,23 @@
         </div>
     </div>
 
+    <!-- МОДАЛКА СОЗДАНИЯ/РЕДАКТИРОВАНИЯ (БЕЗ ИЗМЕНЕНИЙ) -->
     <div class="modal" id="edit-modal">
         <div class="modal-content">
             <h2 id="modal-title" style="margin-bottom:20px;">Новая заявка</h2>
             <form id="visit-form" onsubmit="saveVisit(event)">
-                <h3 style="font-size: 14px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">Данные клиента</h3>
+                <h3 style="font-size: 13px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">ДАННЫЕ КЛИЕНТА</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Фамилия*</label><input type="text" id="lastname" required></div>
                     <div class="form-group"><label>Имя*</label><input type="text" id="firstname" required></div>
                     <div class="form-group"><label>Отчество</label><input type="text" id="surname"></div>
                     <div class="form-group"><label>Телефон*</label><input type="text" id="phone" required></div>
                     <div class="form-group" style="flex-direction:row; align-items:center; gap:10px; padding-top:20px;">
-                        <input type="checkbox" id="is_vip" style="width:20px; height:20px;">
-                        <label style="color: #FF9500; font-weight:bold;">VIP КЛИЕНТ</label>
+                        <input type="checkbox" id="is_vip" style="width:18px; height:18px;">
+                        <label style="color: #FF9500; font-weight:bold; cursor:pointer;" for="is_vip">VIP КЛИЕНТ</label>
                     </div>
                 </div>
-
-                <h3 style="font-size: 14px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">Адрес объекта</h3>
+                <h3 style="font-size: 13px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee; margin-top:10px;">АДРЕС ОБЪЕКТА</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Город</label><input type="text" id="city"></div>
                     <div class="form-group"><label>Район / НП</label><input type="text" id="locality"></div>
@@ -97,71 +160,152 @@
                     <div class="form-group"><label>Корпус</label><input type="number" id="building"></div>
                     <div class="form-group"><label>Квартира</label><input type="number" id="appartment"></div>
                 </div>
-
-                <h3 style="font-size: 14px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">Договор</h3>
+                <h3 style="font-size: 13px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee; margin-top:10px;">ДОГОВОР</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>№ Контракта</label><input type="text" id="contractnumber"></div>
                     <div class="form-group"><label>Дата контракта</label><input type="date" id="contractdate"></div>
                     <div class="form-group"><label>Месяц назначения</label><input type="month" id="assignedmonth"></div>
                 </div>
-
-                <div style="display:flex; justify-content: flex-end; gap:10px; padding-top: 10px;">
+                <div style="display:flex; justify-content: flex-end; gap:10px; padding-top: 15px;">
                     <button type="button" class="btn btn-outline" onclick="closeModal('edit-modal')">Отмена</button>
-                    <button type="submit" class="btn">Сохранить заявку</button>
+                    <button type="submit" class="btn">Сохранить</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Модалка Маппинга Excel (без изменений) -->
-    <div class="modal" id="mapping-modal">
-        <div class="modal-content">
-            <h2>Настройка импорта Excel</h2>
-            <div id="mapping-container"></div>
-            <div style="display:flex; justify-content: flex-end; gap:10px; margin-top:20px;">
-                <button type="button" class="btn btn-outline" onclick="closeModal('mapping-modal')">Отмена</button>
-                <button type="button" class="btn btn-green" onclick="processImport()">Начать импорт</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
-        let currentVisits = [];
+        let allData = []; 
         let currentEditId = null;
+        
+        // Текущая сортировка
+        let sortField = 'is_vip';
+        let sortOrder = 'desc';
 
+        const statusMap = {
+            'created': { text: 'Создана', class: 'status-created' },
+            'scheduled': { text: 'Запланирована', class: 'status-scheduled' },
+            'in_work': { text: 'В работе', class: 'status-in_work' },
+            'done': { text: 'Выполнена', class: 'status-done' },
+            'canceled': { text: 'Отменена', class: 'status-canceled' }
+        };
+
+        // Загрузка данных
         async function loadData() {
-            document.getElementById('main-loader').style.display = 'block';
+            document.getElementById('main-loader').style.display = 'inline-block';
             try {
                 const res = await fetch(`${API_URL}/visit/visits`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                 });
-                currentVisits = await res.json();
-                renderTable();
+                allData = await res.json();
+                filterData();
             } catch (e) { alert('Ошибка загрузки данных'); }
             finally { document.getElementById('main-loader').style.display = 'none'; }
         }
 
-        function renderTable() {
+        // Логика фильтрации
+        function filterData() {
+            const f = {
+                name: document.getElementById('f-name').value.toLowerCase(),
+                phone: document.getElementById('f-phone').value,
+                city: document.getElementById('f-city').value.toLowerCase(),
+                street: document.getElementById('f-street').value.toLowerCase(),
+                contract: document.getElementById('f-contract').value.toLowerCase(),
+                status: document.getElementById('f-status').value,
+                vip: document.getElementById('f-vip').value,
+                start: document.getElementById('f-date-start').value,
+                end: document.getElementById('f-date-end').value
+            };
+
+            let filtered = allData.filter(v => {
+                const contractDate = v.contract_date ? v.contract_date.split('T')[0] : '';
+                return `${v.client.last_name} ${v.client.first_name}`.toLowerCase().includes(f.name) &&
+                       v.client.phone.includes(f.phone) &&
+                       v.address.city.toLowerCase().includes(f.city) &&
+                       v.address.street.toLowerCase().includes(f.street) &&
+                       v.contract_number.toLowerCase().includes(f.contract) &&
+                       (f.status === 'all' || v.status === f.status) &&
+                       (f.vip === 'all' || (f.vip === 'vip' && v.client.is_vip) || (f.vip === 'not_vip' && !v.client.is_vip)) &&
+                       (!f.start || contractDate >= f.start) && 
+                       (!f.end || contractDate <= f.end);
+            });
+
+            document.getElementById('counter').innerText = `Записей: ${filtered.length}`;
+            applySort(filtered);
+        }
+
+        // Логика сортировки
+        function setSort(field) {
+            if (sortField === field) {
+                sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortOrder = 'asc';
+            }
+            updateSortVisuals();
+            filterData();
+        }
+
+        function updateSortVisuals() {
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.getAttribute('data-field') === sortField) {
+                    th.classList.add(sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        function applySort(data) {
+            const accessors = {
+                is_vip: v => v.client.is_vip,
+                last_name: v => v.client.last_name.toLowerCase(),
+                phone: v => v.client.phone,
+                city: v => v.address.city.toLowerCase() + v.address.street.toLowerCase(),
+                contract_number: v => v.contract_number.toLowerCase(),
+                contract_date: v => v.contract_date || '',
+                status: v => v.status
+            };
+
+            const accessor = accessors[sortField];
+
+            data.sort((a, b) => {
+                let valA = accessor(a);
+                let valB = accessor(b);
+                if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+            renderTable(data);
+        }
+
+        function renderTable(data) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
-            const sorted = [...currentVisits].sort((a,b) => (b.client.is_vip - a.client.is_vip));
-            sorted.forEach(v => {
+            data.forEach(v => {
                 const row = document.createElement('tr');
                 if (v.client.is_vip) row.classList.add('is-vip-row');
-                const addr = `${v.address.city || ''} ${v.address.street || ''} ${v.address.house_number || ''}`;
+                const status = statusMap[v.status] || { text: v.status, class: '' };
                 row.innerHTML = `
-                    <td class="vip-badge">${v.client.is_vip ? '⭐️' : ''}</td>
-                    <td>${v.client.last_name} ${v.client.first_name}</td>
+                    <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
+                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name}</td>
                     <td>${v.client.phone}</td>
-                    <td>${addr}</td>
-                    <td>${v.contract_number || '-'}</td>
+                    <td>${v.address.city}, ${v.address.street} ${v.address.house_number}</td>
+                    <td>${v.contract_number}</td>
                     <td>${v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '-'}</td>
-                    <td><span style="color:#007AFF; font-weight:600;">Создан</span></td>
-                    <td><button class="btn btn-outline" style="padding:5px 10px;" onclick='editVisit(${JSON.stringify(v)})'>✏️</button></td>
+                    <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                    <td><button class="btn btn-outline" style="padding:4px 8px" onclick='editVisit(${JSON.stringify(v)})'>✏️</button></td>
                 `;
                 tbody.appendChild(row);
             });
+        }
+
+        // Общие функции
+        function resetFilters() {
+            ['f-name', 'f-phone', 'f-city', 'f-street', 'f-contract', 'f-date-start', 'f-date-end'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('f-status').value = 'all';
+            document.getElementById('f-vip').value = 'all';
+            filterData();
         }
 
         function openEditModal() {
@@ -174,20 +318,20 @@
         function editVisit(v) {
             currentEditId = v.id;
             document.getElementById('modal-title').innerText = "Редактировать заявку";
-            document.getElementById('lastname').value = v.client.last_name || '';
-            document.getElementById('firstname').value = v.client.first_name || '';
+            document.getElementById('lastname').value = v.client.last_name;
+            document.getElementById('firstname').value = v.client.first_name;
             document.getElementById('surname').value = v.client.surname || '';
-            document.getElementById('phone').value = v.client.phone || '';
-            document.getElementById('is_vip').checked = v.client.is_vip || false;
-            document.getElementById('city').value = v.address.city || '';
+            document.getElementById('phone').value = v.client.phone;
+            document.getElementById('is_vip').checked = v.client.is_vip;
+            document.getElementById('city').value = v.address.city;
             document.getElementById('locality').value = v.address.locality || '';
             document.getElementById('region').value = v.address.region || '';
-            document.getElementById('street').value = v.address.street || '';
-            document.getElementById('housenumber').value = v.address.house_number || '';
+            document.getElementById('street').value = v.address.street;
+            document.getElementById('housenumber').value = v.address.house_number;
             document.getElementById('letter').value = v.address.letter || '';
             document.getElementById('building').value = v.address.building || '';
             document.getElementById('appartment').value = v.address.appartment_number || '';
-            document.getElementById('contractnumber').value = v.contract_number || '';
+            document.getElementById('contractnumber').value = v.contract_number;
             if(v.contract_date) document.getElementById('contractdate').value = v.contract_date.split('T')[0];
             if(v.assigned_month) document.getElementById('assignedmonth').value = v.assigned_month;
             document.getElementById('edit-modal').style.display = 'flex';
@@ -216,7 +360,7 @@
                 contract_number: document.getElementById('contractnumber').value,
                 contract_date: document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null,
                 assigned_month: document.getElementById('assignedmonth').value,
-                status: "created"
+                status: currentEditId ? undefined : "created"
             };
 
             const method = currentEditId ? 'PUT' : 'POST';
@@ -224,19 +368,45 @@
 
             const res = await fetch(url, {
                 method: method,
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}` 
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
                 body: JSON.stringify(data)
             });
 
             if (res.ok) { closeModal('edit-modal'); loadData(); }
-            else { alert('Ошибка сохранения'); }
         }
 
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
         function logout() { localStorage.clear(); window.location.href = '/'; }
+
+        // --- НОВАЯ ФУНКЦИЯ ПЕРЕХОДА В ПРОФИЛЬ ---
+        function goToProfile() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                // Извлекаем ID из JWT
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(base64));
+                
+                // Сохраняем в локалсторадж для profile.html
+                const userId = payload.user_id || payload.id || payload.sub;
+                if (userId) {
+                    localStorage.setItem('profile_user_id', userId);
+                }
+            } catch (e) {
+                console.error('Error decoding token:', e);
+            }
+
+            // Редирект
+            window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
+        }
+
+        // Начальная инициализация
+        updateSortVisuals();
         loadData();
     </script>
 </body>

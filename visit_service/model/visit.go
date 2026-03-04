@@ -20,6 +20,8 @@ type Visit struct {
 	EquipmentDescription string
 	AssignedMonth        string          `gorm:"size:20"`
 	Amount               decimal.Decimal `gorm:"type:numeric(10,2)"`
+	Status               string          `gorm:"size:20"`
+	DispatcherComment    string
 
 	Client  Client  `gorm:"foreignKey:ClientID;references:ID"`
 	Address Address `gorm:"foreignKey:AddressID;references:ID"`

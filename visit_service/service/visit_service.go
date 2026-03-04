@@ -27,6 +27,7 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 		LastName:  visit.Client.LastName,
 		Surname:   visit.Client.Surname,
 		Phone:     visit.Client.Phone,
+		IsVip:     visit.Client.IsVip,
 	}
 
 	if err := s.repository.CreateClient(client); err != nil {
@@ -57,6 +58,8 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 		EquipmentDescription: visit.EquipmentDescription,
 		AssignedMonth:        visit.AssignedMonth,
 		Amount:               visit.Amount,
+		Status:               visit.Status,
+		DispatcherComment:    visit.DispatcherComment,
 
 		Client:  *client,
 		Address: *address,
@@ -105,11 +108,13 @@ func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
 				LastName  string `json:"last_name"`
 				Surname   string `json:"surname"`
 				Phone     string `json:"phone"`
+				IsVip     bool   `json:"is_vip"`
 			}{
 				FirstName: vis.Client.FirstName,
 				LastName:  vis.Client.LastName,
 				Surname:   vis.Client.Surname,
 				Phone:     vis.Client.Phone,
+				IsVip:     vis.Client.IsVip,
 			},
 			Address: struct {
 				City             string `json:"city"`
@@ -139,6 +144,8 @@ func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
 			AssignedMonth:        vis.AssignedMonth,
 			Amount:               vis.Amount,
 			MasterID:             vis.MasterID,
+			Status:               vis.Status,
+			DispatcherComment:    vis.DispatcherComment,
 		}
 
 		visitsDTO = append(visitsDTO, visDTO)
@@ -168,6 +175,7 @@ func (s *VisitService) UpdateVisit(id uint, visitDTO *model.VisitDTO) error {
 	existingVisit.Client.LastName = visitDTO.Client.LastName
 	existingVisit.Client.Surname = visitDTO.Client.Surname
 	existingVisit.Client.Phone = visitDTO.Client.Phone
+	existingVisit.Client.IsVip = visitDTO.Client.IsVip
 
 	if err := s.repository.UpdateClient(&existingVisit.Client); err != nil {
 		return err
@@ -194,6 +202,8 @@ func (s *VisitService) UpdateVisit(id uint, visitDTO *model.VisitDTO) error {
 	existingVisit.AssignedMonth = visitDTO.AssignedMonth
 	existingVisit.Amount = visitDTO.Amount
 	existingVisit.MasterID = visitDTO.MasterID
+	existingVisit.Status = visitDTO.Status
+	existingVisit.DispatcherComment = visitDTO.DispatcherComment
 
 	return s.repository.UpdateVisit(&existingVisit)
 }
