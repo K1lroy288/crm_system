@@ -27,10 +27,25 @@ func main() {
 	})
 
 	r.GET("/table", func(ctx *gin.Context) {
-		_, err := utils.ValidateJWT(ctx)
+		claims, err := utils.ValidateJWT(ctx)
 		if err != nil {
 			log.Printf("Invalid token: %v", err)
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+			return
+		}
+
+		if utils.Contains(claims.Roles, "manager") {
+			ctx.HTML(http.StatusOK, "manager.html", nil)
+			return
+		}
+
+		if utils.Contains(claims.Roles, "dispetcher") {
+			ctx.HTML(http.StatusOK, "dispetcher.html", nil)
+			return
+		}
+
+		if utils.Contains(claims.Roles, "master") {
+			ctx.HTML(http.StatusOK, "master.html", nil)
 			return
 		}
 
@@ -51,6 +66,22 @@ func main() {
 		}
 
 		ctx.HTML(http.StatusOK, "admin.html", nil)
+	})
+
+	r.GET("/manager", func(ctx *gin.Context) {
+		claims, err := utils.ValidateJWT(ctx)
+		if err != nil {
+			log.Printf("Invalid token: %v", err)
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+			return
+		}
+
+		if !utils.Contains(claims.Roles, "manager") {
+			ctx.Status(http.StatusForbidden)
+			return
+		}
+
+		ctx.HTML(http.StatusOK, "manager.html", nil)
 	})
 
 	api := r.Group("/auth")

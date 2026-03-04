@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Менеджера | Ввод данных</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: #f5f5f7; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        h1 { color: #333; font-size: 24px; }
+        .btn { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .btn:hover { background: #0056CC; }
+        .btn-outline { background: white; color: #007AFF; border: 1px solid #007AFF; }
+        .btn-green { background: #34C759; }
+        .btn-red { background: #FF3B30; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .table-container { overflow-x: auto; background: white; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background: #f8f9fa; color: #666; font-weight: 600; }
+        tr:hover { background: #f9f9f9; }
+        .vip-badge { color: #FF9500; font-weight: bold; font-size: 18px; }
+        .is-vip-row { border-left: 4px solid #FF9500; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 95%; max-width: 900px; max-height: 95vh; overflow-y: auto; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 12px; color: #888; text-transform: uppercase; }
+        .form-group input, .form-group select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+        .mapping-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; background: #f8f9fa; margin-bottom: 5px; border-radius: 6px; }
+        .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📝 Менеджер: Оформление заявок</h1>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-outline" onclick="loadData()">🔄 Обновить</button>
+            <button class="btn btn-green" onclick="openEditModal()">+ Создать вручную</button>
+            <button class="btn" onclick="document.getElementById('excel-input').click()">📁 Импорт Excel</button>
+            <input type="file" id="excel-input" style="display:none" accept=".xlsx, .xls" onchange="handleExcel(event)">
+            <button class="btn btn-red" onclick="logout()">Выйти</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="loader" id="main-loader"></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>VIP</th>
+                        <th>ФИО Клиента</th>
+                        <th>Телефон</th>
+                        <th>Адрес</th>
+                        <th>Договор №</th>
+                        <th>Дата договора</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <h2 id="modal-title" style="margin-bottom:20px;">Новая заявка</h2>
+            <form id="visit-form" onsubmit="saveVisit(event)">
+                <h3 style="font-size: 14px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">Данные клиента</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Фамилия*</label><input type="text" id="lastname" required></div>
+                    <div class="form-group"><label>Имя*</label><input type="text" id="firstname" required></div>
+                    <div class="form-group"><label>Отчество</label><input type="text" id="surname"></div>
+                    <div class="form-group"><label>Телефон*</label><input type="text" id="phone" required></div>
+                    <div class="form-group" style="flex-direction:row; align-items:center; gap:10px; padding-top:20px;">
+                        <input type="checkbox" id="is_vip" style="width:20px; height:20px;">
+                        <label style="color: #FF9500; font-weight:bold;">VIP КЛИЕНТ</label>
+                    </div>
+                </div>
+
+                <h3 style="font-size: 14px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">Адрес объекта</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Город</label><input type="text" id="city"></div>
+                    <div class="form-group"><label>Район / НП</label><input type="text" id="locality"></div>
+                    <div class="form-group"><label>Регион</label><input type="text" id="region"></div>
+                    <div class="form-group"><label>Улица</label><input type="text" id="street"></div>
+                </div>
+                <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="form-group"><label>Дом*</label><input type="number" id="housenumber" required></div>
+                    <div class="form-group"><label>Литера</label><input type="text" id="letter"></div>
+                    <div class="form-group"><label>Корпус</label><input type="number" id="building"></div>
+                    <div class="form-group"><label>Квартира</label><input type="number" id="appartment"></div>
+                </div>
+
+                <h3 style="font-size: 14px; color: #007AFF; margin-bottom: 10px; border-bottom: 1px solid #eee;">Договор</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>№ Контракта</label><input type="text" id="contractnumber"></div>
+                    <div class="form-group"><label>Дата контракта</label><input type="date" id="contractdate"></div>
+                    <div class="form-group"><label>Месяц назначения</label><input type="month" id="assignedmonth"></div>
+                </div>
+
+                <div style="display:flex; justify-content: flex-end; gap:10px; padding-top: 10px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('edit-modal')">Отмена</button>
+                    <button type="submit" class="btn">Сохранить заявку</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модалка Маппинга Excel (без изменений) -->
+    <div class="modal" id="mapping-modal">
+        <div class="modal-content">
+            <h2>Настройка импорта Excel</h2>
+            <div id="mapping-container"></div>
+            <div style="display:flex; justify-content: flex-end; gap:10px; margin-top:20px;">
+                <button type="button" class="btn btn-outline" onclick="closeModal('mapping-modal')">Отмена</button>
+                <button type="button" class="btn btn-green" onclick="processImport()">Начать импорт</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        let currentVisits = [];
+        let currentEditId = null;
+
+        async function loadData() {
+            document.getElementById('main-loader').style.display = 'block';
+            try {
+                const res = await fetch(`${API_URL}/visit/visits`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                });
+                currentVisits = await res.json();
+                renderTable();
+            } catch (e) { alert('Ошибка загрузки данных'); }
+            finally { document.getElementById('main-loader').style.display = 'none'; }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            const sorted = [...currentVisits].sort((a,b) => (b.client.is_vip - a.client.is_vip));
+            sorted.forEach(v => {
+                const row = document.createElement('tr');
+                if (v.client.is_vip) row.classList.add('is-vip-row');
+                const addr = `${v.address.city || ''} ${v.address.street || ''} ${v.address.house_number || ''}`;
+                row.innerHTML = `
+                    <td class="vip-badge">${v.client.is_vip ? '⭐️' : ''}</td>
+                    <td>${v.client.last_name} ${v.client.first_name}</td>
+                    <td>${v.client.phone}</td>
+                    <td>${addr}</td>
+                    <td>${v.contract_number || '-'}</td>
+                    <td>${v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '-'}</td>
+                    <td><span style="color:#007AFF; font-weight:600;">Создан</span></td>
+                    <td><button class="btn btn-outline" style="padding:5px 10px;" onclick='editVisit(${JSON.stringify(v)})'>✏️</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function openEditModal() {
+            currentEditId = null;
+            document.getElementById('modal-title').innerText = "Новая заявка";
+            document.getElementById('visit-form').reset();
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        function editVisit(v) {
+            currentEditId = v.id;
+            document.getElementById('modal-title').innerText = "Редактировать заявку";
+            document.getElementById('lastname').value = v.client.last_name || '';
+            document.getElementById('firstname').value = v.client.first_name || '';
+            document.getElementById('surname').value = v.client.surname || '';
+            document.getElementById('phone').value = v.client.phone || '';
+            document.getElementById('is_vip').checked = v.client.is_vip || false;
+            document.getElementById('city').value = v.address.city || '';
+            document.getElementById('locality').value = v.address.locality || '';
+            document.getElementById('region').value = v.address.region || '';
+            document.getElementById('street').value = v.address.street || '';
+            document.getElementById('housenumber').value = v.address.house_number || '';
+            document.getElementById('letter').value = v.address.letter || '';
+            document.getElementById('building').value = v.address.building || '';
+            document.getElementById('appartment').value = v.address.appartment_number || '';
+            document.getElementById('contractnumber').value = v.contract_number || '';
+            if(v.contract_date) document.getElementById('contractdate').value = v.contract_date.split('T')[0];
+            if(v.assigned_month) document.getElementById('assignedmonth').value = v.assigned_month;
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        async function saveVisit(event) {
+            event.preventDefault();
+            const data = {
+                client: {
+                    last_name: document.getElementById('lastname').value,
+                    first_name: document.getElementById('firstname').value,
+                    surname: document.getElementById('surname').value,
+                    phone: document.getElementById('phone').value,
+                    is_vip: document.getElementById('is_vip').checked
+                },
+                address: {
+                    city: document.getElementById('city').value,
+                    locality: document.getElementById('locality').value,
+                    region: document.getElementById('region').value,
+                    street: document.getElementById('street').value,
+                    house_number: parseInt(document.getElementById('housenumber').value) || 0,
+                    letter: document.getElementById('letter').value,
+                    building: parseInt(document.getElementById('building').value) || null,
+                    appartment_number: parseInt(document.getElementById('appartment').value) || null
+                },
+                contract_number: document.getElementById('contractnumber').value,
+                contract_date: document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null,
+                assigned_month: document.getElementById('assignedmonth').value,
+                status: "created"
+            };
+
+            const method = currentEditId ? 'PUT' : 'POST';
+            const url = currentEditId ? `${API_URL}/visit/visits/${currentEditId}` : `${API_URL}/visit/visits`;
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}` 
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) { closeModal('edit-modal'); loadData(); }
+            else { alert('Ошибка сохранения'); }
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function logout() { localStorage.clear(); window.location.href = '/'; }
+        loadData();
+    </script>
+</body>
+</html>

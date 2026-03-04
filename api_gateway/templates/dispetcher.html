@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Диспетчера | Планирование</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: #f5f5f7; padding: 20px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        h1 { color: #333; font-size: 24px; }
+        
+        .btn { background: #007AFF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .btn:hover { background: #0056CC; }
+        .btn-outline { background: white; color: #007AFF; border: 1px solid #007AFF; }
+        .btn-green { background: #34C759; }
+        .btn-red { background: #FF3B30; }
+
+        /* Карточки и Таблица */
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .table-container { overflow-x: auto; background: white; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background: #f8f9fa; color: #666; font-weight: 600; }
+        tr:hover { background: #f9f9f9; }
+
+        /* VIP и Статусы */
+        .vip-row { background: #fff9eb !important; border-left: 5px solid #FF9500; }
+        .vip-star { color: #FF9500; font-weight: bold; margin-right: 5px; }
+        
+        .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .status-created { background: #E3F2FD; color: #1976D2; } /* Создан менеджером */
+        .status-scheduled { background: #E8F5E9; color: #2E7D32; } /* Назначен мастер */
+
+        /* Модалка */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 600px; }
+        
+        .info-block { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
+        .info-block p { font-size: 14px; margin-bottom: 5px; color: #444; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: #666; }
+        .form-group select, .form-group input, .form-group textarea { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        
+        .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎧 Диспетчер: Распределение задач</h1>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-outline" onclick="loadData()">🔄 Обновить список</button>
+            <button class="btn btn-red" onclick="logout()">Выйти</button>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="card" style="padding: 15px; display: flex; gap: 15px; align-items: center;">
+        <span style="font-size: 14px; font-weight: 600;">Показать:</span>
+        <select id="status-filter" onchange="renderTable()" style="padding: 5px; border-radius: 6px;">
+            <option value="created">Новые (ожидают назначения)</option>
+            <option value="scheduled">Уже распределены</option>
+            <option value="all">Все заявки</option>
+        </select>
+    </div>
+
+    <div class="card">
+        <div class="loader" id="main-loader"></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Клиент</th>
+                        <th>Адрес</th>
+                        <th>Телефон</th>
+                        <th>Менеджер (Инфо)</th>
+                        <th>Статус</th>
+                        <th>Мастер</th>
+                        <th>Дата визита</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Заполняется из JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА: Назначение мастера -->
+    <div class="modal" id="assign-modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom:20px;">Назначение мастера</h2>
+            
+            <div id="client-info-preview" class="info-block">
+                <!-- Сюда вставим краткое инфо о клиенте -->
+            </div>
+
+            <form id="assign-form" onsubmit="saveAssignment(event)">
+                <input type="hidden" id="visit-id">
+                
+                <div class="form-group">
+                    <label>Выберите мастера*</label>
+                    <select id="master-select" required>
+                        <option value="">-- Выберите из списка --</option>
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Дата визита*</label>
+                        <input type="date" id="scheduled-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Время</label>
+                        <input type="time" id="scheduled-time">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Оборудование / Специфика</label>
+                    <textarea id="equipment" rows="2" placeholder="Напр: Газовый котел, замена фильтров"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Комментарий для мастера</label>
+                    <textarea id="disp-comment" rows="2" placeholder="Напр: Домофон не работает, позвонить за час"></textarea>
+                </div>
+
+                <div style="display:flex; justify-content: flex-end; gap:10px; margin-top:10px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-green">Подтвердить и отправить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        let visits = [];
+        let masters = [];
+        let currentVisit = null;
+
+        async function loadData() {
+            document.getElementById('main-loader').style.display = 'block';
+            try {
+                const token = localStorage.getItem('auth_token');
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                // Загружаем визиты и мастеров параллельно
+                const [vRes, mRes] = await Promise.all([
+                    fetch(`${API_URL}/visit/visits`, { headers }),
+                    fetch(`${API_URL}/user/masters`, { headers })
+                ]);
+
+                visits = await vRes.json();
+                masters = await mRes.json();
+
+                populateMasterDropdown();
+                renderTable();
+            } catch (e) {
+                console.error(e);
+                alert('Ошибка при обновлении данных');
+            } finally {
+                document.getElementById('main-loader').style.display = 'none';
+            }
+        }
+
+        function populateMasterDropdown() {
+            const select = document.getElementById('master-select');
+            // Сохраняем первую опцию
+            select.innerHTML = '<option value="">-- Выберите из списка --</option>';
+            masters.forEach(m => {
+                const name = `${m.last_name || ''} ${m.first_name || ''} (@${m.username})`;
+                select.innerHTML += `<option value="${m.id}">${name}</option>`;
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            const filter = document.getElementById('status-filter').value;
+            tbody.innerHTML = '';
+
+            // Сортировка: VIP вперед, затем по ID (новые сверху)
+            const sorted = [...visits].sort((a,b) => {
+                if (b.client.is_vip !== a.client.is_vip) return b.client.is_vip - a.client.is_vip;
+                return b.id - a.id;
+            });
+
+            sorted.forEach(v => {
+                // Фильтрация по статусу (в учебных целях считаем, что если master_id нет — это 'created')
+                const status = v.master_id ? 'scheduled' : 'created';
+                if (filter !== 'all' && filter !== status) return;
+
+                const row = document.createElement('tr');
+                if (v.client.is_vip) row.classList.add('vip-row');
+
+                row.innerHTML = `
+                    <td>
+                        ${v.client.is_vip ? '<span class="vip-star">⭐️ VIP</span>' : ''}
+                        <strong>${v.client.last_name} ${v.client.first_name}</strong>
+                    </td>
+                    <td>${v.address.city}, ${v.address.street}</td>
+                    <td>${v.client.phone}</td>
+                    <td style="font-size:12px; color:#666;">
+                        Договор: ${v.contract_number || '-'}<br>
+                        Месяц: ${v.assigned_month || '-'}
+                    </td>
+                    <td>
+                        <span class="status-badge status-${status}">
+                            ${status === 'created' ? 'Новая' : 'Распределена'}
+                        </span>
+                    </td>
+                    <td>${v.master_id ? getMasterName(v.master_id) : '—'}</td>
+                    <td>${v.scheduled_date ? new Date(v.scheduled_date).toLocaleDateString() : '—'}</td>
+                    <td>
+                        <button class="btn" onclick='openAssignModal(${JSON.stringify(v)})'>
+                            ${v.master_id ? 'Изменить' : 'Назначить'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getMasterName(id) {
+            const m = masters.find(m => m.id === id);
+            return m ? `${m.last_name} ${m.first_name[0]}.` : `ID: ${id}`;
+        }
+
+        function openAssignModal(v) {
+            currentVisit = v;
+            document.getElementById('visit-id').value = v.id;
+            
+            // Превью данных для диспетчера
+            document.getElementById('client-info-preview').innerHTML = `
+                <p><strong>Клиент:</strong> ${v.client.last_name} ${v.client.first_name}</p>
+                <p><strong>Адрес:</strong> ${v.address.city}, ${v.address.street}, д. ${v.address.house_number}</p>
+                <p><strong>Тел:</strong> ${v.client.phone}</p>
+            `;
+
+            // Если уже было назначено — заполняем поля
+            document.getElementById('master-select').value = v.master_id || '';
+            document.getElementById('scheduled-date').value = v.scheduled_date ? v.scheduled_date.split('T')[0] : '';
+            document.getElementById('scheduled-time').value = v.scheduled_time || '';
+            document.getElementById('equipment').value = v.equipment_description || '';
+            document.getElementById('disp-comment').value = v.dispatcher_comment || '';
+
+            document.getElementById('assign-modal').style.display = 'flex';
+        }
+
+        async function saveAssignment(event) {
+            event.preventDefault();
+            const token = localStorage.getItem('auth_token');
+            const visitId = document.getElementById('visit-id').value;
+
+            // Собираем объект для обновления (как требует visit_service)
+            // Важно передать все поля, чтобы не затереть данные менеджера
+            const updateData = {
+                ...currentVisit,
+                master_id: parseInt(document.getElementById('master-select').value),
+                scheduled_date: document.getElementById('scheduled-date').value + "T00:00:00Z",
+                scheduled_time: document.getElementById('scheduled-time').value,
+                equipment_description: document.getElementById('equipment').value,
+                dispatcher_comment: document.getElementById('disp-comment').value,
+                status: "scheduled" // Меняем статус
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/visit/visits/${visitId}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (res.ok) {
+                    alert('Мастер успешно назначен!');
+                    closeModal();
+                    loadData();
+                } else {
+                    alert('Ошибка при сохранении');
+                }
+            } catch (e) {
+                alert('Ошибка сети');
+            }
+        }
+
+        function closeModal() { document.getElementById('assign-modal').style.display = 'none'; }
+        
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/';
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
