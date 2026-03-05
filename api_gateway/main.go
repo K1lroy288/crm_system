@@ -18,6 +18,8 @@ func main() {
 
 	r.LoadHTMLGlob("templates/*.html")
 
+	r.Static("/static", "./static")
+
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "Api Gateway is up!")
 	})
@@ -40,7 +42,7 @@ func main() {
 		}
 
 		if utils.Contains(claims.Roles, "dispatcher") {
-			ctx.HTML(http.StatusOK, "dispetcher.html", nil)
+			ctx.HTML(http.StatusOK, "dispatcher.html", nil)
 			return
 		}
 

@@ -18,6 +18,8 @@ COPY --from=builder /api_gateway/api-gateway .
 
 COPY --from=builder /api_gateway/templates ./templates/
 
+COPY --from=builder /api_gateway/static ./static/
+
 COPY .env .
 
 EXPOSE 8000
