@@ -8,43 +8,35 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f2f2f7; padding: 15px; padding-bottom: 80px; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        h1 { font-size: 20px; color: #1c1c1e; }
+        .header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-size: 18px; color: #1c1c1e; }
 
-        /* Карточка задачи */
+        .date-selector { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; }
+        .date-selector label { font-size: 14px; font-weight: 600; color: #666; }
+        .date-selector input { border: 1px solid #ddd; padding: 8px; border-radius: 8px; flex-grow: 1; font-size: 16px; outline: none; background: #fff; }
+
         .task-card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #e5e5ea; }
         .task-card.active { border: 2px solid #007AFF; background: #f0f7ff; }
-        .task-card.completed { opacity: 0.6; background: #f8f9fa; }
-
+        .task-card.completed { border-color: #34C759; background: #f2faf3; opacity: 0.8; }
+        
         .time-badge { font-size: 13px; font-weight: 600; color: #007AFF; margin-bottom: 8px; display: block; }
         .client-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; color: #1c1c1e; }
-        .address { font-size: 15px; color: #3a3a3c; margin-bottom: 12px; line-height: 1.4; }
+        .address { font-size: 14px; color: #3a3a3c; margin-bottom: 12px; line-height: 1.4; background: #f8f9fa; padding: 8px; border-radius: 8px; }
         
-        .info-row { font-size: 14px; color: #8e8e93; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+        .info-row { font-size: 14px; color: #3a3a3c; margin-bottom: 5px; display: flex; align-items: flex-start; gap: 5px; }
         .vip-tag { background: #FF9500; color: white; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
 
-        /* Кнопки действий */
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .btn { border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; transition: 0.2s; }
         
         .btn-call { background: #34C759; color: white; }
+        .btn-outline { background: white; color: #007AFF; border: 1px solid #007AFF; }
         .btn-start { background: #007AFF; color: white; width: 100%; grid-column: 1 / -1; }
         .btn-done { background: #34C759; color: white; width: 100%; grid-column: 1 / -1; }
-        .btn-logout { background: #FF3B30; color: white; padding: 8px 15px; font-size: 12px; }
+        .btn-logout { background: #FF3B30; color: white; padding: 8px 12px; font-size: 12px; }
+        .btn-profile { background: white; color: #1c1c1e; border: 1px solid #d1d1d6; padding: 8px 12px; font-size: 12px; }
 
-        /* Статусы */
-        .status-tag { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
-        .status-scheduled { background: #e5e5ea; color: #3a3a3c; }
-        .status-in_work { background: #007AFF; color: white; }
-        .status-done { background: #34C759; color: white; }
-
-        /* Модалка для отчета */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: flex-end; z-index: 1000; }
-        .modal-content { background: white; padding: 25px; border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        
-        textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin: 15px 0; font-size: 16px; }
-        
         .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -52,34 +44,28 @@
 <body>
 
     <div class="header">
-        <h1>🛠 Мои заявки</h1>
-        <button class="btn btn-logout" onclick="logout()">Выход</button>
-    </div>
-
-    <div id="main-loader" class="loader"></div>
-    <div id="task-list">
-        <!-- Заявки будут здесь -->
-    </div>
-
-    <!-- Модалка закрытия заявки -->
-    <div class="modal" id="report-modal">
-        <div class="modal-content">
-            <h2 style="font-size: 18px;">Завершение работы</h2>
-            <p style="font-size: 14px; color: #666; margin-top: 5px;">Опишите кратко, что было сделано:</p>
-            <textarea id="report-text" rows="4" placeholder="Напр: Заменил фильтры, проверил давление. Все ок."></textarea>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-logout" style="flex:1" onclick="closeModal()">Отмена</button>
-                <button class="btn btn-done" style="flex:2" onclick="confirmDone()">Сохранить и закрыть</button>
+        <div class="header-top">
+            <h1>🛠 Мои заявки</h1>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-profile" onclick="goToProfile()">👤</button>
+                <button class="btn btn-logout" onclick="logout()">Выход</button>
             </div>
+        </div>
+        <div class="date-selector">
+            <label>Дата:</label>
+            <input type="date" id="task-date" onchange="loadTasks()">
         </div>
     </div>
 
+    <div id="main-loader" class="loader"></div>
+    <div id="task-list"></div>
+
     <script>
         const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
-        let myId = null;
-        let currentVisit = null;
+        
+        // Устанавливаем текущую дату
+        document.getElementById('task-date').valueAsDate = new Date();
 
-        // 1. Получаем ID мастера из токена
         function getMyId() {
             const token = localStorage.getItem('auth_token');
             if (!token) return logout();
@@ -87,143 +73,140 @@
             return payload.user_id || payload.id;
         }
 
-        // 2. Загрузка задач
         async function loadTasks() {
-            document.getElementById('main-loader').style.display = 'block';
-            myId = getMyId();
+            const selectedDate = document.getElementById('task-date').value;
+            const loader = document.getElementById('main-loader');
+            const container = document.getElementById('task-list');
+            
+            loader.style.display = 'block';
+            container.innerHTML = '';
+            
+            const myId = getMyId();
             
             try {
-                const res = await fetch(`${API_URL}/visit/visits`, {
+                // ПЕРЕДАЕМ И ДАТУ И ID МАСТЕРА ДЛЯ БЕЗОПАСНОСТИ
+                const res = await fetch(`${API_URL}/visit/visits?date=${selectedDate}&master_id=${myId}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                 });
-                const allVisits = await res.json();
+
+                if (!res.ok) throw new Error("Server error");
+
+                const myVisits = await res.json();
                 
-                // Фильтруем только свои и только актуальные (не выполненные)
-                const myVisits = allVisits.filter(v => v.master_id === myId);
-                renderTasks(myVisits);
-            } catch (e) {
-                alert('Ошибка загрузки задач');
-            } finally {
-                document.getElementById('main-loader').style.display = 'none';
+                // ПРОВЕРКА НА ПУСТОЙ МАССИВ (BODY EMPTY)
+                if (!myVisits || myVisits.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На выбранный день заявок нет 🙌</p>';
+                } else {
+                    renderTasks(myVisits);
+                }
+            } catch (e) { 
+                console.error(e);
+                container.innerHTML = '<p style="text-align:center; color:red; margin-top:50px;">Ошибка загрузки данных</p>';
+            } finally { 
+                loader.style.display = 'none'; 
             }
+        }
+
+        function formatFullAddress(a) {
+            const parts = [];
+            if (a.region) parts.push(`обл. ${a.region}`);
+            if (a.city) parts.push(`г. ${a.city}`);
+            if (a.locality) parts.push(`р-н ${a.locality}`);
+            if (a.street) parts.push(`ул. ${a.street}`);
+            if (a.house_number) {
+                let h = `д. ${a.house_number}${a.letter || ''}`;
+                parts.push(h);
+            }
+            if (a.building) parts.push(`к. ${a.building}`);
+            if (a.appartment_number) parts.push(`кв. ${a.appartment_number}`);
+            return parts.join(', ') || 'Адрес не указан';
         }
 
         function renderTasks(tasks) {
             const container = document.getElementById('task-list');
-            container.innerHTML = '';
-
-            if (tasks.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На сегодня задач нет 🙌</p>';
-                return;
-            }
-
-            // Сортировка: сначала те, что "В работе", затем остальные по времени
+            
+            // Сортировка: "В работе" всегда первые
             tasks.sort((a,b) => (a.status === 'in_work' ? -1 : 1));
 
             tasks.forEach(t => {
-                const isCompleted = t.status === 'done';
-                if (isCompleted) return; // Скрываем выполненные, чтобы не мешались
-
                 const card = document.createElement('div');
-                card.className = `task-card ${t.status === 'in_work' ? 'active' : ''}`;
+                card.className = `task-card ${t.status === 'in_work' ? 'active' : ''} ${t.status === 'done' ? 'completed' : ''}`;
+                
+                const fullAddr = formatFullAddress(t.address);
+                const isDone = t.status === 'done';
                 
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <span class="time-badge">🕒 ${t.scheduled_time || 'Время не указано'}</span>
-                        ${t.client.is_vip ? '<span class="vip-tag">VIP</span>' : ''}
+                        ${t.client.is_vip ? '<span class="vip-tag">⭐️ VIP</span>' : ''}
                     </div>
                     <div class="client-name">${t.client.last_name} ${t.client.first_name}</div>
-                    <div class="address">📍 ${t.address.city}, ${t.address.street}, д. ${t.address.house_number}</div>
+                    <div class="address">📍 ${fullAddr}</div>
                     
-                    <div class="info-block" style="background:#f8f9fa; padding:10px; border-radius:8px; margin-bottom:15px;">
-                        <div class="info-row"><strong>Оборудование:</strong> ${t.equipment_description || 'не указано'}</div>
-                        <div class="info-row"><strong>Инфо:</strong> ${t.dispatcher_comment || 'нет'}</div>
+                    <div style="background:#f1f1f7; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px;">
+                        <div class="info-row"><strong>Прибор:</strong> ${t.equipment_description || '—'}</div>
+                        <div class="info-row"><strong>Заметка:</strong> ${t.dispatcher_comment || '—'}</div>
                     </div>
 
-                    <div class="actions">
-                        <a href="tel:${t.client.phone}" class="btn btn-call">📞 Позвонить</a>
-                        <button class="btn btn-outline" onclick="openMap('${t.address.city}, ${t.address.street}')">🗺 Карта</button>
-                        
-                        ${t.status === 'in_work' 
-                            ? `<button class="btn btn-done" onclick='openReportModal(${JSON.stringify(t)})'>✅ ЗАВЕРШИТЬ</button>`
-                            : `<button class="btn btn-start" onclick='updateStatus(${JSON.stringify(t)}, "in_work")'>🚀 Я НА МЕСТЕ</button>`
-                        }
-                    </div>
+                    ${!isDone ? `
+                        <div class="actions">
+                            <a href="tel:${t.client.phone}" class="btn btn-call">📞 Позвонить</a>
+                            <button class="btn btn-outline" onclick="openMap('${fullAddr.replace(/'/g, "\\'")}')">🗺 Карта</button>
+                            
+                            ${t.status === 'in_work' 
+                                ? `<button class="btn btn-done" onclick='handleCompleteWork(${JSON.stringify(t)})'>✅ ЗАВЕРШИТЬ</button>`
+                                : `<button class="btn btn-start" onclick='handleStartWork(${JSON.stringify(t)})'>🚀 Я НА МЕСТЕ</button>`
+                            }
+                        </div>
+                    ` : '<div style="text-align:center; color:#34C759; font-weight:bold; font-size:14px;">✓ Выполнено</div>'}
                 `;
                 container.appendChild(card);
             });
         }
 
-        // Изменение статуса (Начало работы)
-        async function updateStatus(visit, newStatus) {
+        async function handleStartWork(visit) {
+            if (!confirm("Подтвердите прибытие на объект?")) return;
+            updateVisitStatus(visit, "in_work");
+        }
+
+        async function handleCompleteWork(visit) {
+            if (!confirm("Вы уверены, что работа завершена?")) return;
+            updateVisitStatus(visit, "done");
+        }
+
+        async function updateVisitStatus(visit, newStatus) {
             const token = localStorage.getItem('auth_token');
-            const updatedVisit = { 
+            const payload = { 
                 ...visit, 
                 status: newStatus,
-                // Если начали работу — фиксируем время
-                actual_start_at: newStatus === 'in_work' ? new Date().toISOString() : visit.actual_start_at
+                actual_start_at: newStatus === 'in_work' ? new Date().toISOString() : visit.actual_start_at,
+                actual_end_at: newStatus === 'done' ? new Date().toISOString() : visit.actual_end_at
             };
 
             try {
                 const res = await fetch(`${API_URL}/visit/visits/${visit.id}`, {
                     method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(updatedVisit)
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
                 });
                 if (res.ok) loadTasks();
-            } catch (e) {
-                alert('Ошибка сети');
-            }
+                else alert("Ошибка при обновлении статуса");
+            } catch (e) { alert('Ошибка сети'); }
         }
 
-        // Завершение работы
-        function openReportModal(visit) {
-            currentVisit = visit;
-            document.getElementById('report-modal').style.display = 'flex';
+        function openMap(fullAddr) {
+            const cleanAddr = fullAddr.replace(/(обл\.|г\.|р-н|ул\.|д\.|к\.|кв\.)/g, '').trim();
+            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(cleanAddr)}`, '_blank');
         }
 
-        async function confirmDone() {
-            const report = document.getElementById('report-text').value;
-            if (!report) return alert('Пожалуйста, напишите краткий отчет');
+        function logout() { localStorage.clear(); window.location.href = '/'; }
 
+        function goToProfile() {
             const token = localStorage.getItem('auth_token');
-            const updatedVisit = { 
-                ...currentVisit, 
-                status: "done",
-                master_report: report,
-                actual_end_at: new Date().toISOString()
-            };
-
-            try {
-                const res = await fetch(`${API_URL}/visit/visits/${currentVisit.id}`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(updatedVisit)
-                });
-                if (res.ok) {
-                    closeModal();
-                    loadTasks();
-                }
-            } catch (e) {
-                alert('Ошибка при сохранении отчета');
-            }
-        }
-
-        function openMap(addr) {
-            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(addr)}`, '_blank');
-        }
-
-        function closeModal() { document.getElementById('report-modal').style.display = 'none'; }
-        
-        function logout() {
-            localStorage.clear();
-            window.location.href = '/';
+            if (!token) return logout();
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            localStorage.setItem('profile_user_id', payload.user_id || payload.id);
+            window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
         }
 
         loadTasks();

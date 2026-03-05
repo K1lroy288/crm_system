@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 	"visit-service/client"
 	"visit-service/config"
 	"visit-service/model"
@@ -73,11 +74,33 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 	return nil
 }
 
-func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
-	visits, err := s.repository.GetVisits()
-	if err != nil {
-		log.Printf("error getting visits from DB: %v", err)
-		return []model.VisitDTO{}, nil
+func (s *VisitService) GetVisits(dateStr, masterIDStr string) ([]model.VisitDTO, error) {
+	visits := []model.Visit{}
+	if dateStr != "" || masterIDStr != "" {
+		date, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			log.Printf("error parse scheduled_date getVisits: %v", err)
+			return []model.VisitDTO{}, err
+		}
+
+		masterID, err := strconv.Atoi(masterIDStr)
+		if err != nil {
+			log.Printf("error parse master id getVisits: %v", err)
+			return []model.VisitDTO{}, err
+		}
+
+		visits, err = s.repository.GetMasterVisitsByDate(date, masterID)
+		if err != nil {
+			log.Printf("error getting visits from DB: %v", err)
+			return []model.VisitDTO{}, err
+		}
+	} else {
+		var err error
+		visits, err = s.repository.GetVisits()
+		if err != nil {
+			log.Printf("error getting visits from DB: %v", err)
+			return []model.VisitDTO{}, nil
+		}
 	}
 
 	var masterIDs []uint
@@ -88,6 +111,7 @@ func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
 	}
 
 	var masters []model.MasterDTO
+	var err error
 	if len(masterIDs) > 0 {
 		masters, err = s.client.GetMastersByIDs(masterIDs)
 		if err != nil {

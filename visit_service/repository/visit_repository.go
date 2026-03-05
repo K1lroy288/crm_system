@@ -30,6 +30,18 @@ func (r *VisitRepository) CreateVisit(visit *model.Visit) error {
 	return err
 }
 
+func (r *VisitRepository) GetMasterVisitsByDate(date time.Time, masterID int) ([]model.Visit, error) {
+	var visits []model.Visit
+
+	err := r.DB.
+		Preload("Client").
+		Preload("Address").
+		Where("deleted_at IS NULL AND DATE(scheduled_date) = ? AND master_id = ?", date, masterID).
+		Find(&visits).Error
+
+	return visits, err
+}
+
 func (r *VisitRepository) GetVisits() ([]model.Visit, error) {
 	var visits []model.Visit
 
