@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель Диспетчера</title>
     <style>
+        /* Стили остаются без изменений */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f5f5f7; padding: 20px; }
         
@@ -17,7 +18,6 @@
         .btn-green { background: #34C759; }
         .btn-red { background: #FF3B30; }
 
-        /* ФИЛЬТРЫ */
         .filters-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .filters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         .filter-group { display: flex; flex-direction: column; gap: 6px; }
@@ -25,7 +25,6 @@
         .filter-group input, .filter-group select { padding: 9px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; }
         .filter-row-actions { display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0; justify-content: flex-end; align-items: center; }
 
-        /* ТАБЛИЦА */
         .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; min-width: 1400px; }
@@ -33,7 +32,6 @@
         th { background: #f8f9fa; color: #555; font-weight: 600; cursor: pointer; user-select: none; transition: 0.2s; white-space: nowrap; position: relative; }
         th:hover { background: #eef1f5; color: #007AFF; }
         
-        /* Индикаторы сортировки */
         .sort-icon::after { content: '↕'; margin-left: 8px; opacity: 0.3; font-size: 11px; }
         th.sort-asc .sort-icon::after { content: '↑'; opacity: 1; color: #007AFF; }
         th.sort-desc .sort-icon::after { content: '↓'; opacity: 1; color: #007AFF; }
@@ -207,7 +205,7 @@
                 phone: document.getElementById('f-phone').value.toLowerCase(),
                 city: document.getElementById('f-city').value.toLowerCase(),
                 street: document.getElementById('f-street').value.toLowerCase(),
-                month: document.getElementById('f-month').value.toLowerCase(), // Поиск по строке
+                month: document.getElementById('f-month').value.toLowerCase(), 
                 master: document.getElementById('f-master').value,
                 status: document.getElementById('f-status').value,
                 vip: document.getElementById('f-vip').value,
@@ -223,10 +221,7 @@
                 const matchPhone = v.client.phone.toLowerCase().includes(f.phone);
                 const matchCity = v.address.city.toLowerCase().includes(f.city);
                 const matchStreet = v.address.street.toLowerCase().includes(f.street);
-                
-                // Фильтр по строке месяца
                 const matchMonth = vMonth.includes(f.month);
-                
                 const matchMaster = (f.master === 'all' || v.master_id == f.master);
                 const matchStatus = (f.status === 'all' || v.status === f.status);
                 const matchVip = (f.vip === 'all' || (f.vip === 'vip' && v.client.is_vip) || (f.vip === 'not_vip' && !v.client.is_vip));
@@ -259,10 +254,9 @@
                 last_name: v => v.client.last_name.toLowerCase(),
                 phone: v => v.client.phone,
                 assigned_month: v => v.assigned_month || '',
-                // КОРРЕКТНАЯ СОРТИРОВКА ПО ПОЛНОМУ АДРЕСУ (Иерархия: Регион -> Город -> Улица)
                 city: v => {
                     const a = v.address;
-                    return (a.region + a.city + a.locality + a.street + a.house_number).toLowerCase();
+                    return (a.city + a.region + a.locality + a.street + a.house_number).toLowerCase();
                 },
                 status: v => v.status,
                 master_id: v => v.master_id || 0,
@@ -287,10 +281,10 @@
                 const st = statusMap[v.status] || { text: v.status, class: '' };
                 const a = v.address;
                 
-                // Формирование полного адреса
+                // 1. ИСПРАВЛЕННЫЙ ПОРЯДОК АДРЕСА: Город -> Район
                 const addrParts = [];
-                if (a.region) addrParts.push(`обл. ${a.region}`);
                 if (a.city) addrParts.push(`г. ${a.city}`);
+                if (a.region) addrParts.push(`р-н ${a.region}`);
                 if (a.locality) addrParts.push(`р-н ${a.locality}`);
                 if (a.street) addrParts.push(`ул. ${a.street}`);
                 if (a.house_number) {
@@ -303,15 +297,27 @@
                 const fullAddr = addrParts.join(', ') || '-';
 
                 const master = allMasters.find(m => m.id === v.master_id);
+                
+                // Исправление отображения мастера (убираем undefined)
+                let masterDisplay = '—';
+                if (master) {
+                    masterDisplay = master.last_name;
+                    if (master.first_name && master.first_name.length > 0) {
+                        masterDisplay += ` ${master.first_name[0]}.`;
+                    }
+                }
+
+                // 2. ИСПРАВЛЕННОЕ ФИО КЛИЕНТА (с Отчеством/Surname)
+                const fio = `${v.client.last_name || ''} ${v.client.first_name || ''} ${v.client.surname || ''}`.trim();
 
                 row.innerHTML = `
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
-                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name}</td>
+                    <td><strong>${fio}</strong></td>
                     <td>${v.client.phone}</td>
                     <td>${v.assigned_month || '—'}</td>
                     <td style="max-width:300px">${fullAddr}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
-                    <td>${master ? `${master.last_name} ${master.first_name[0]}.` : '—'}</td>
+                    <td>${masterDisplay}</td>
                     <td>${v.scheduled_date ? new Date(v.scheduled_date).toLocaleDateString() : '—'}</td>
                     <td><button class="btn btn-outline" style="padding:4px 8px" onclick='openAssignModal(${JSON.stringify(v)})'>Назначить</button></td>
                 `;

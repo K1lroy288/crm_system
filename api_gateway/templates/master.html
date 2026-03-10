@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мои выезды | Панель мастера</title>
+    <title>Мои выезды</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f2f2f7; padding: 15px; padding-bottom: 80px; }
@@ -37,6 +37,14 @@
         .btn-logout { background: #FF3B30; color: white; padding: 8px 12px; font-size: 12px; }
         .btn-profile { background: white; color: #1c1c1e; border: 1px solid #d1d1d6; padding: 8px 12px; font-size: 12px; }
 
+        /* Модалка выбора телефона */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: flex-end; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .phone-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-phone { background: #f2f2f7; color: #007AFF; padding: 15px; border-radius: 12px; text-decoration: none; text-align: center; font-weight: 600; font-size: 18px; }
+
         .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -60,10 +68,18 @@
     <div id="main-loader" class="loader"></div>
     <div id="task-list"></div>
 
+    <!-- Модалка выбора телефона -->
+    <div class="modal" id="phone-modal">
+        <div class="modal-content">
+            <h2 style="font-size: 18px; text-align: center;">Выберите номер для звонка</h2>
+            <div class="phone-list" id="phone-options"></div>
+            <button class="btn btn-outline" style="width: 100%; margin-top: 15px; border: none; color: #FF3B30;" onclick="closePhoneModal()">Отмена</button>
+        </div>
+    </div>
+
     <script>
         const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
         
-        // Устанавливаем текущую дату
         document.getElementById('task-date').valueAsDate = new Date();
 
         function getMyId() {
@@ -84,23 +100,18 @@
             const myId = getMyId();
             
             try {
-                // ПЕРЕДАЕМ И ДАТУ И ID МАСТЕРА ДЛЯ БЕЗОПАСНОСТИ
                 const res = await fetch(`${API_URL}/visit/visits?date=${selectedDate}&master_id=${myId}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                 });
-
                 if (!res.ok) throw new Error("Server error");
-
                 const myVisits = await res.json();
                 
-                // ПРОВЕРКА НА ПУСТОЙ МАССИВ (BODY EMPTY)
                 if (!myVisits || myVisits.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На выбранный день заявок нет 🙌</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На этот день заявок нет 🙌</p>';
                 } else {
                     renderTasks(myVisits);
                 }
             } catch (e) { 
-                console.error(e);
                 container.innerHTML = '<p style="text-align:center; color:red; margin-top:50px;">Ошибка загрузки данных</p>';
             } finally { 
                 loader.style.display = 'none'; 
@@ -108,24 +119,24 @@
         }
 
         function formatFullAddress(a) {
-            const parts = [];
-            if (a.region) parts.push(`обл. ${a.region}`);
-            if (a.city) parts.push(`г. ${a.city}`);
-            if (a.locality) parts.push(`р-н ${a.locality}`);
-            if (a.street) parts.push(`ул. ${a.street}`);
+            const addrParts = [];
+            if (a.city) addrParts.push(`г. ${a.city}`);
+            if (a.region) addrParts.push(`р-н ${a.region}`);
+            if (a.locality) addrParts.push(`р-н ${a.locality}`);
+            if (a.street) addrParts.push(`ул. ${a.street}`);
             if (a.house_number) {
-                let h = `д. ${a.house_number}${a.letter || ''}`;
-                parts.push(h);
+                let h = `д. ${a.house_number}`;
+                if (a.letter) h += a.letter;
+                addrParts.push(h);
             }
-            if (a.building) parts.push(`к. ${a.building}`);
-            if (a.appartment_number) parts.push(`кв. ${a.appartment_number}`);
-            return parts.join(', ') || 'Адрес не указан';
+            if (a.building) addrParts.push(`к. ${a.building}`);
+            if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
+
+            return addrParts.join(', ') || 'Адрес не указан';
         }
 
         function renderTasks(tasks) {
             const container = document.getElementById('task-list');
-            
-            // Сортировка: "В работе" всегда первые
             tasks.sort((a,b) => (a.status === 'in_work' ? -1 : 1));
 
             tasks.forEach(t => {
@@ -135,12 +146,15 @@
                 const fullAddr = formatFullAddress(t.address);
                 const isDone = t.status === 'done';
                 
+                // Формируем полное имя с отчеством
+                const fullName = `${t.client.last_name} ${t.client.first_name} ${t.client.surname || ''}`.trim();
+                
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <span class="time-badge">🕒 ${t.scheduled_time || 'Время не указано'}</span>
                         ${t.client.is_vip ? '<span class="vip-tag">⭐️ VIP</span>' : ''}
                     </div>
-                    <div class="client-name">${t.client.last_name} ${t.client.first_name}</div>
+                    <div class="client-name">${fullName}</div>
                     <div class="address">📍 ${fullAddr}</div>
                     
                     <div style="background:#f1f1f7; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px;">
@@ -150,7 +164,7 @@
 
                     ${!isDone ? `
                         <div class="actions">
-                            <a href="tel:${t.client.phone}" class="btn btn-call">📞 Позвонить</a>
+                            <button class="btn btn-call" onclick="initiateCall('${t.client.phone}')">📞 Позвонить</button>
                             <button class="btn btn-outline" onclick="openMap('${fullAddr.replace(/'/g, "\\'")}')">🗺 Карта</button>
                             
                             ${t.status === 'in_work' 
@@ -162,6 +176,33 @@
                 `;
                 container.appendChild(card);
             });
+        }
+
+        // --- ЛОГИКА ЗВОНКА ---
+        function initiateCall(phoneStr) {
+            if (!phoneStr) return alert("Номер телефона не указан");
+            
+            const phones = phoneStr.split(/[;|,]/).map(p => p.trim()).filter(p => p.length > 0);
+            
+            if (phones.length === 1) {
+                window.location.href = `tel:${phones[0]}`;
+            } else {
+                const container = document.getElementById('phone-options');
+                container.innerHTML = '';
+                phones.forEach(phone => {
+                    const btn = document.createElement('a');
+                    btn.className = 'btn-phone';
+                    btn.href = `tel:${phone}`;
+                    btn.innerText = phone;
+                    btn.onclick = closePhoneModal;
+                    container.appendChild(btn);
+                });
+                document.getElementById('phone-modal').style.display = 'flex';
+            }
+        }
+
+        function closePhoneModal() {
+            document.getElementById('phone-modal').style.display = 'none';
         }
 
         async function handleStartWork(visit) {
@@ -210,6 +251,11 @@
         }
 
         loadTasks();
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('phone-modal');
+            if (event.target === modal) closePhoneModal();
+        }
     </script>
 </body>
 </html>

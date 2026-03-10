@@ -3,70 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель Менеджера</title>
+    <title>Панель Менеджера | CRM</title>
     <script src="/static/js/xlsx.full.min.js"></script>
     <style>
+        /* Стили остаются без изменений */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f5f5f7; padding: 20px; }
-        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         h1 { color: #333; font-size: 22px; }
-        
         .btn { background: #007AFF; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: 500; }
         .btn:hover { background: #0056CC; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
         .btn-outline { background: white; color: #007AFF; border: 1px solid #007AFF; }
         .btn-green { background: #34C759; }
         .btn-red { background: #FF3B30; }
-
-        /* ФИЛЬТРЫ */
         .filters-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .filters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         .filter-group { display: flex; flex-direction: column; gap: 6px; }
         .filter-group label { font-size: 11px; text-transform: uppercase; color: #888; font-weight: 700; letter-spacing: 0.5px; }
         .filter-group input, .filter-group select { padding: 9px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; }
         .filter-row-actions { display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0; justify-content: flex-end; align-items: center; }
-
-        /* ТАБЛИЦА */
         .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1300px; }
         th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
         th { background: #f8f9fa; color: #555; font-weight: 600; cursor: pointer; user-select: none; transition: 0.2s; white-space: nowrap; position: relative; }
         th:hover { background: #eef1f5; color: #007AFF; }
-        
         .sort-icon::after { content: '↕'; margin-left: 8px; opacity: 0.3; font-size: 11px; }
         th.sort-asc .sort-icon::after { content: '↑'; opacity: 1; color: #007AFF; }
         th.sort-desc .sort-icon::after { content: '↓'; opacity: 1; color: #007AFF; }
-        
         .is-vip-row { background: #fffcf0; }
         .vip-star { color: #FF9500; font-size: 16px; font-weight: bold; }
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
-        
         .status-created { background: #E3F2FD; color: #1976D2; }
         .status-scheduled { background: #FFF3E0; color: #E65100; }
         .status-in_work { background: #E1F5FE; color: #0288D1; border: 1px solid #0288D1; }
         .status-done { background: #E8F5E9; color: #2E7D32; }
         .status-canceled { background: #FFEBEE; color: #C62828; }
-
-        /* ДИЗАЙН МОДАЛЬНОГО ОКНА */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 30px; border-radius: 20px; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        
         .modal-content h2 { font-size: 22px; font-weight: 700; color: #1c1c1e; margin-bottom: 25px; }
         .modal-content h3 { font-size: 12px; font-weight: 700; color: #007AFF; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 15px 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; }
-        
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 10px; }
         .form-group { display: flex; flex-direction: column; gap: 8px; }
         .form-group label { font-size: 13px; font-weight: 600; color: #444; }
-        
-        .form-group input, .form-group select { 
-            padding: 12px 15px; border: 1.5px solid #e1e1e7; border-radius: 12px; font-size: 14px; transition: all 0.2s ease; background: #fbfbfd; outline: none; color: #1c1c1e;
-        }
-        
-        .form-group input:focus, .form-group select:focus { border-color: #007AFF; background: #ffffff; box-shadow: 0 0 0 4px rgba(0,122,255,0.1); }
-
+        .form-group input, .form-group select { padding: 12px 15px; border: 1.5px solid #e1e1e7; border-radius: 12px; font-size: 14px; transition: all 0.2s ease; background: #fbfbfd; outline: none; color: #1c1c1e; }
+        .form-group input:focus, .form-group select:focus { border-color: #007AFF; background: #fff; box-shadow: 0 0 0 4px rgba(0,122,255,0.1); }
         .form-group input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; accent-color: #FF9500; }
-
+        .mapping-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 12px; background: #f8f9fa; border-radius: 12px; margin-bottom: 8px; align-items: center; border: 1px solid #eee; }
+        .mapping-label { font-weight: 600; font-size: 14px; }
         .loader { display: none; width: 25px; height: 25px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -74,7 +59,7 @@
 <body>
 
     <div class="header">
-        <h1>📝 Менеджер: CRM</h1>
+        <h1>📝 Менеджер: Управление заявками</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
             <div id="main-loader" class="loader"></div>
             <button class="btn btn-outline" onclick="goToProfile()">👤 Профиль</button>
@@ -107,7 +92,7 @@
             <div class="filter-group">
                 <label>Приоритет</label>
                 <select id="f-vip" onchange="filterData()">
-                    <option value="all">Все</option>
+                    <option value="all">Все клиенты</option>
                     <option value="vip">Только VIP ⭐️</option>
                     <option value="not_vip">Без VIP</option>
                 </select>
@@ -122,7 +107,6 @@
         </div>
     </div>
 
-    <!-- Таблица -->
     <div class="card">
         <div class="table-container">
             <table>
@@ -143,59 +127,90 @@
         </div>
     </div>
 
-    <!-- Модалка -->
+    <!-- МОДАЛКА: Редактирование -->
     <div class="modal" id="edit-modal">
         <div class="modal-content">
-            <h2 id="modal-title">Новая заявка</h2>
+            <h2 id="modal-title">Заявка</h2>
             <form id="visit-form" onsubmit="saveVisit(event)">
-                
                 <h3>Данные клиента</h3>
                 <div class="form-grid">
-                    <div class="form-group"><label>Фамилия*</label><input type="text" id="lastname" placeholder="Иванов" required></div>
-                    <div class="form-group"><label>Имя*</label><input type="text" id="firstname" placeholder="Иван" required></div>
-                    <div class="form-group"><label>Отчество</label><input type="text" id="surname" placeholder="Иванович"></div>
-                    <div class="form-group"><label>Телефон*</label><input type="text" id="phone" placeholder="79990000000" required></div>
+                    <div class="form-group"><label>Фамилия*</label><input type="text" id="lastname" required></div>
+                    <div class="form-group"><label>Имя*</label><input type="text" id="firstname" required></div>
+                    <div class="form-group"><label>Отчество</label><input type="text" id="surname"></div>
+                    <div class="form-group"><label>Телефон*</label><input type="text" id="phone" required></div>
                     <div class="form-group" style="flex-direction:row; align-items:center; gap:12px; margin-top: 22px;">
                         <input type="checkbox" id="is_vip">
                         <label style="color: #FF9500; font-weight:bold; cursor:pointer;" for="is_vip">⭐️ VIP КЛИЕНТ</label>
                     </div>
                 </div>
-
                 <h3>Адрес объекта</h3>
                 <div class="form-grid">
-                    <div class="form-group"><label>Город</label><input type="text" id="city" placeholder="Москва"></div>
-                    <div class="form-group"><label>Район / НП</label><input type="text" id="locality" placeholder="Центральный"></div>
-                    <div class="form-group"><label>Регион</label><input type="text" id="region" placeholder="Московская обл."></div>
-                    <div class="form-group"><label>Улица</label><input type="text" id="street" placeholder="Ленина"></div>
+                    <div class="form-group"><label>Регион</label><input type="text" id="region"></div>
+                    <div class="form-group"><label>Город</label><input type="text" id="city"></div>
+                    <div class="form-group"><label>Район / НП</label><input type="text" id="locality"></div>
+                    <div class="form-group"><label>Улица</label><input type="text" id="street"></div>
                 </div>
                 <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
                     <div class="form-group"><label>Дом*</label><input type="number" id="housenumber" required></div>
-                    <div class="form-group"><label>Литера</label><input type="text" id="letter" placeholder="А"></div>
+                    <div class="form-group"><label>Литера</label><input type="text" id="letter"></div>
                     <div class="form-group"><label>Корпус</label><input type="number" id="building"></div>
                     <div class="form-group"><label>Квартира</label><input type="number" id="appartment"></div>
                 </div>
-
                 <h3>Договор</h3>
                 <div class="form-grid">
-                    <div class="form-group"><label>№ Контракта</label><input type="text" id="contractnumber" placeholder="№123"></div>
+                    <div class="form-group"><label>№ Контракта</label><input type="text" id="contractnumber"></div>
                     <div class="form-group"><label>Дата контракта</label><input type="date" id="contractdate"></div>
                     <div class="form-group"><label>Месяц назначения</label><input type="month" id="assignedmonth"></div>
                 </div>
-
                 <div style="display:flex; justify-content: flex-end; gap:12px; margin-top: 30px;">
-                    <button type="button" class="btn btn-outline" onclick="closeModal('edit-modal')" style="padding: 12px 25px;">Отмена</button>
-                    <button type="submit" class="btn" style="padding: 12px 40px; font-weight: bold;">Сохранить заявку</button>
+                    <button type="button" class="btn btn-outline" onclick="closeModal('edit-modal')">Отмена</button>
+                    <button type="submit" class="btn">Сохранить</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА: Настройка импорта Excel -->
+    <div class="modal" id="mapping-modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <h2>Настройка импорта Excel</h2>
+            <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 12px; font-size: 13px; color: #856404; border: 1px solid #ffeeba;">
+                💡 <strong>Подсказка:</strong> Выберите нужный лист и строку начала данных.
+                <div style="margin-top: 10px; display: flex; gap: 15px; align-items: center;">
+                    Лист: <select id="excel-sheet-select" onchange="onSheetChange()" style="padding: 4px; border-radius: 6px;"></select>
+                    Начать со строки №: <input type="number" id="excel-start-row" value="2" min="1" style="width: 50px; padding: 4px; border-radius: 6px;">
+                </div>
+            </div>
+            <div id="mapping-container"></div>
+            <div style="display:flex; justify-content: flex-end; gap:12px; margin-top: 30px;">
+                <button type="button" class="btn btn-outline" id="import-cancel-btn" onclick="closeModal('mapping-modal')">Отмена</button>
+                <button type="button" class="btn btn-green" id="import-submit-btn" onclick="processImport()">Начать загрузку</button>
+            </div>
         </div>
     </div>
 
     <script>
         const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
         let allData = []; 
+        let allMasters = []; // Список мастеров
         let currentEditId = null;
         let currentVisitData = null; 
-        
+        let currentWorkbook = null; 
+        let rawExcelRows = []; 
+
+        const DB_FIELDS = [
+            { id: 'smart_fio', label: 'ФИО (в одну колонку)*' },
+            { id: 'phone', label: 'Телефон*' },
+            { id: 'smart_address', label: 'Адрес (в одну колонку)' },
+            { id: 'smart_contract', label: 'Договор (№ и Дата)' },
+            { id: 'time_info', label: 'Время / Комментарий' },
+            { id: 'assigned_month', label: 'Месяц назначения' },
+            { id: 'scheduled_date', label: 'Дата визита' },
+            { id: 'amount', label: 'Сумма' },
+            { id: 'equipment_description', label: 'Оборудование' },
+            { id: 'master_name', label: 'ФИО Мастера' }
+        ];
+
         let sortField = 'is_vip';
         let sortOrder = 'desc';
 
@@ -207,13 +222,208 @@
             'canceled': { text: 'Отменена', class: 'status-canceled' }
         };
 
+        // --- УМНЫЙ ПАРСИНГ ---
+
+        function splitSmartFio(str) {
+            if (!str) return { last: '', first: 'Имя', sur: '' };
+            const parts = str.trim().split(/\s+/);
+            return {
+                last: parts[0] || '',
+                first: parts[1] || 'Имя',
+                sur: parts.slice(2).join(' ') || ''
+            };
+        }
+
+        function parseSmartAddress(str) {
+            const res = { region: '', city: '', locality: '', street: '', house: 0, letter: '', build: '' };
+            if (!str) return res;
+            const cityMatch = str.match(/г\.\s?([А-Яа-я\-]+)/);
+            if (cityMatch) res.city = cityMatch[1];
+            const regionMatch = str.match(/район\s?([А-Яа-я\-]+)/);
+            if (regionMatch) res.region = regionMatch[1];
+            const streetMatch = str.match(/(?:улица|ул\.|пер\.|переулок)\s?([А-Яа-я\s\-]+?)(?:,|$)/);
+            if (streetMatch) res.street = streetMatch[1].trim();
+            const houseMatch = str.match(/(?:дом|д\.)\s?(\d+)/);
+            if (houseMatch) res.house = parseInt(houseMatch[1]);
+            const letterMatch = str.match(/литер\s?([А-Яа-яA-Za-z])/);
+            if (letterMatch) res.letter = letterMatch[1];
+            const buildMatch = str.match(/(?:строение|корпус|к\.)\s?(\d+)/);
+            if (buildMatch) res.build = buildMatch[1];
+            if (!res.city) res.city = str.split(',')[0].trim();
+            return res;
+        }
+
+        function parseSmartContract(str) {
+            if (!str) return { num: '', date: null };
+            const numMatch = str.match(/№\s?([^\s,]+)/);
+            const dateMatch = str.match(/(\d{2}\.\d{2}\.\d{4})/);
+            let isoDate = null;
+            if (dateMatch) {
+                const [d, m, y] = dateMatch[1].split('.');
+                isoDate = `${y}-${m}-${d}T00:00:00Z`;
+            }
+            return { num: numMatch ? `№${numMatch[1]}` : str.trim(), date: isoDate };
+        }
+
+        function parseExcelDate(val) {
+            if (!val) return null;
+            if (typeof val === 'number') {
+                const date = new Date((val - 25569) * 86400 * 1000);
+                return date.toISOString();
+            }
+            const str = String(val).trim();
+            const dateMatch = str.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+            if (dateMatch) {
+                const day = dateMatch[1].padStart(2, '0');
+                const month = dateMatch[2].padStart(2, '0');
+                const year = dateMatch[3];
+                return `${year}-${month}-${day}T00:00:00Z`;
+            }
+            return null;
+        }
+
+        function extractTimeAndComment(str) {
+            if (!str) return { time: '', comment: '' };
+            const parts = str.split(/[,]/);
+            const firstBlock = parts[0].trim();
+            if (/\d/.test(firstBlock)) {
+                const time = firstBlock.replace(/\./g, ':');
+                const comment = parts.slice(1).join(',').trim();
+                return { time, comment };
+            }
+            return { time: '', comment: str };
+        }
+
+        // Поиск мастера по фамилии
+        function findMasterId(masterRawName) {
+            if (!masterRawName) return null;
+            const lastName = masterRawName.trim().split(' ')[0].toLowerCase();
+            const master = allMasters.find(m => (m.last_name || '').toLowerCase() === lastName);
+            return master ? master.id : null;
+        }
+
+        // --- EXCEL ---
+
+        function handleExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                currentWorkbook = XLSX.read(data, { type: 'array' });
+                const select = document.getElementById('excel-sheet-select');
+                select.innerHTML = currentWorkbook.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+                onSheetChange();
+                document.getElementById('mapping-modal').style.display = 'flex';
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = ''; 
+        }
+
+        function onSheetChange() {
+            const sheetName = document.getElementById('excel-sheet-select').value;
+            rawExcelRows = XLSX.utils.sheet_to_json(currentWorkbook.Sheets[sheetName], { header: 1 });
+            showMappingUI();
+        }
+
+        function showMappingUI() {
+            const container = document.getElementById('mapping-container');
+            container.innerHTML = '';
+            const sample = rawExcelRows[9] || rawExcelRows[1] || rawExcelRows[0] || [];
+            DB_FIELDS.forEach(field => {
+                let opts = '<option value="-1">-- Пропустить --</option>';
+                sample.forEach((c, i) => {
+                    const letter = String.fromCharCode(65 + i);
+                    opts += `<option value="${i}">Кол. ${letter} (${String(c||'').substring(0,12)})</option>`;
+                });
+                container.innerHTML += `<div class="mapping-row"><span class="mapping-label">${field.label}</span><select class="excel-col-selector" data-db-field="${field.id}">${opts}</select></div>`;
+            });
+        }
+
+        async function processImport() {
+            const btnSubmit = document.getElementById('import-submit-btn');
+            const btnCancel = document.getElementById('import-cancel-btn');
+            const startRow = parseInt(document.getElementById('excel-start-row').value) - 1;
+            const mapping = {};
+            document.querySelectorAll('.excel-col-selector').forEach(s => {
+                const val = parseInt(s.value);
+                if (val !== -1) mapping[s.getAttribute('data-db-field')] = val;
+            });
+
+            if (mapping.smart_fio === undefined) return alert("Сопоставьте ФИО");
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = "Загрузка...";
+            btnCancel.style.display = "none";
+            document.getElementById('main-loader').style.display = 'inline-block';
+
+            let success = 0;
+            let lastFio = "", lastPhone = "", lastAddr = "", lastContract = "";
+
+            for (let i = startRow; i < rawExcelRows.length; i++) {
+                const row = rawExcelRows[i];
+                if (!row || row.length === 0) continue;
+
+                const fRaw = row[mapping.smart_fio] ? String(row[mapping.smart_fio]) : lastFio;
+                const pRaw = mapping.phone !== undefined ? (row[mapping.phone] ? String(row[mapping.phone]) : lastPhone) : lastPhone;
+                const aRaw = mapping.smart_address !== undefined ? (row[mapping.smart_address] ? String(row[mapping.smart_address]) : lastAddr) : lastAddr;
+                const cRaw = mapping.smart_contract !== undefined ? (row[mapping.smart_contract] ? String(row[mapping.smart_contract]) : lastContract) : lastContract;
+
+                if (!fRaw) continue;
+                lastFio = fRaw; lastPhone = pRaw; lastAddr = aRaw; lastContract = cRaw;
+
+                const fio = splitSmartFio(fRaw);
+                const addr = parseSmartAddress(aRaw);
+                const contract = parseSmartContract(cRaw);
+                const timeData = extractTimeAndComment(String(row[mapping.time_info] || ""));
+                
+                // Мастер и Статус
+                const masterId = mapping.master_name !== undefined ? findMasterId(row[mapping.master_name]) : null;
+                const status = masterId ? "scheduled" : "created";
+
+                const payload = {
+                    client: { last_name: fio.last, first_name: fio.first, surname: fio.sur, phone: pRaw, is_vip: false },
+                    address: { region: addr.region, city: addr.city, street: addr.street, house_number: addr.house, letter: addr.letter, building: parseInt(addr.build) || null },
+                    contract_number: contract.num,
+                    contract_date: contract.date,
+                    assigned_month: String(row[mapping.assigned_month] || ''),
+                    scheduled_date: mapping.scheduled_date !== undefined ? parseExcelDate(row[mapping.scheduled_date]) : null,
+                    amount: mapping.amount !== undefined ? parseFloat(String(row[mapping.amount] || '0').replace(',', '.')) : 0,
+                    equipment_description: mapping.equipment_description !== undefined ? String(row[mapping.equipment_description] || '') : '',
+                    scheduled_time: timeData.time,
+                    dispatcher_comment: timeData.comment,
+                    master_id: masterId,
+                    status: status
+                };
+
+                const res = await fetch(`${API_URL}/visit/visits`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) success++;
+            }
+            
+            alert(`Импорт завершен! Загружено: ${success}`);
+            btnSubmit.disabled = false;
+            btnSubmit.innerText = "Начать загрузку";
+            btnCancel.style.display = "inline-block";
+            closeModal('mapping-modal');
+            loadData();
+        }
+
+        // --- СТАНДАРТНАЯ ЛОГИКА ---
+
         async function loadData() {
             document.getElementById('main-loader').style.display = 'inline-block';
             try {
-                const res = await fetch(`${API_URL}/visit/visits`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-                });
-                allData = await res.json();
+                const token = localStorage.getItem('auth_token');
+                const [vRes, mRes] = await Promise.all([
+                    fetch(`${API_URL}/visit/visits`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_URL}/user/masters`, { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                allData = await vRes.json();
+                allMasters = await mRes.json();
                 filterData();
             } catch (e) { console.error(e); }
             finally { document.getElementById('main-loader').style.display = 'none'; }
@@ -231,9 +441,8 @@
                 start: document.getElementById('f-date-start').value,
                 end: document.getElementById('f-date-end').value
             };
-
             let filtered = allData.filter(v => {
-                const contractDate = v.contract_date ? v.contract_date.split('T')[0] : '';
+                const d = v.contract_date ? v.contract_date.split('T')[0] : '';
                 return `${v.client.last_name} ${v.client.first_name}`.toLowerCase().includes(f.name) &&
                        v.client.phone.includes(f.phone) &&
                        v.address.city.toLowerCase().includes(f.city) &&
@@ -241,10 +450,8 @@
                        v.contract_number.toLowerCase().includes(f.contract) &&
                        (f.status === 'all' || v.status === f.status) &&
                        (f.vip === 'all' || (f.vip === 'vip' && v.client.is_vip) || (f.vip === 'not_vip' && !v.client.is_vip)) &&
-                       (!f.start || contractDate >= f.start) && 
-                       (!f.end || contractDate <= f.end);
+                       (!f.start || d >= f.start) && (!f.end || d <= f.end);
             });
-
             document.getElementById('counter').innerText = `Записей: ${filtered.length}`;
             applySort(filtered);
         }
@@ -264,26 +471,24 @@
         }
 
         function applySort(data) {
-            const accessors = {
+            const acc = {
                 is_vip: v => v.client.is_vip,
                 last_name: v => v.client.last_name.toLowerCase(),
                 phone: v => v.client.phone,
-                city: v => (v.address.city + v.address.street).toLowerCase(),
+                city: v => (v.address.region + v.address.city + v.address.street).toLowerCase(),
                 contract_number: v => v.contract_number.toLowerCase(),
                 contract_date: v => v.contract_date || '',
                 status: v => v.status
             };
-            const accessor = accessors[sortField];
             data.sort((a, b) => {
-                let valA = accessor(a); let valB = accessor(b);
-                if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-                if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                let vA = acc[sortField](a), vB = acc[sortField](b);
+                if (vA < vB) return sortOrder === 'asc' ? -1 : 1;
+                if (vA > vB) return sortOrder === 'asc' ? 1 : -1;
                 return 0;
             });
             renderTable(data);
         }
 
-        // --- ОБНОВЛЕННАЯ ФУНКЦИЯ ВЫВОДА ТАБЛИЦЫ С ПОЛНЫМ АДРЕСОМ ---
         function renderTable(data) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -291,32 +496,24 @@
                 const row = document.createElement('tr');
                 if (v.client.is_vip) row.classList.add('is-vip-row');
                 const st = statusMap[v.status] || { text: v.status, class: '' };
-                
-                // Сборка полного адреса в нужной последовательности с сокращениями
                 const a = v.address;
                 const addrParts = [];
-                
-                if (a.region) addrParts.push(`обл. ${a.region}`);
                 if (a.city) addrParts.push(`г. ${a.city}`);
                 if (a.locality) addrParts.push(`р-н ${a.locality}`);
+                if (a.region) addrParts.push(`р-н ${a.region}`);
                 if (a.street) addrParts.push(`ул. ${a.street}`);
-                
                 if (a.house_number) {
-                    let hStr = `д. ${a.house_number}`;
-                    if (a.letter) hStr += a.letter;
-                    addrParts.push(hStr);
+                    let h = `д. ${a.house_number}${a.letter||''}`;
+                    addrParts.push(h);
                 }
-                
                 if (a.building) addrParts.push(`к. ${a.building}`);
                 if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
 
-                const fullAddr = addrParts.join(', ') || '-';
-
                 row.innerHTML = `
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
-                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name}</td>
+                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name} ${v.client.surname || ''}</td>
                     <td>${v.client.phone}</td>
-                    <td style="max-width: 320px; line-height: 1.3;">${fullAddr}</td>
+                    <td style="max-width:320px;">${addrParts.join(', ') || '-'}</td>
                     <td>${v.contract_number || '-'}</td>
                     <td>${v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '-'}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
@@ -324,13 +521,6 @@
                 `;
                 tbody.appendChild(row);
             });
-        }
-
-        function resetFilters() {
-            ['f-name', 'f-phone', 'f-city', 'f-street', 'f-contract', 'f-date-start', 'f-date-end'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('f-status').value = 'all';
-            document.getElementById('f-vip').value = 'all';
-            filterData();
         }
 
         function openEditModal() {
@@ -341,17 +531,16 @@
         }
 
         function editVisit(v) {
-            currentEditId = v.id;
-            currentVisitData = v; 
+            currentEditId = v.id; currentVisitData = v;
             document.getElementById('modal-title').innerText = "Редактировать заявку";
             document.getElementById('lastname').value = v.client.last_name || '';
             document.getElementById('firstname').value = v.client.first_name || '';
             document.getElementById('surname').value = v.client.surname || '';
             document.getElementById('phone').value = v.client.phone || '';
             document.getElementById('is_vip').checked = v.client.is_vip || false;
+            document.getElementById('region').value = v.address.region || '';
             document.getElementById('city').value = v.address.city || '';
             document.getElementById('locality').value = v.address.locality || '';
-            document.getElementById('region').value = v.address.region || '';
             document.getElementById('street').value = v.address.street || '';
             document.getElementById('housenumber').value = v.address.house_number || '';
             document.getElementById('letter').value = v.address.letter || '';
@@ -365,50 +554,44 @@
 
         async function saveVisit(event) {
             event.preventDefault();
-            let payload = currentEditId ? { ...currentVisitData } : { client: {}, address: {} };
-
-            payload.client.last_name = document.getElementById('lastname').value;
-            payload.client.first_name = document.getElementById('firstname').value;
-            payload.client.surname = document.getElementById('surname').value;
-            payload.client.phone = document.getElementById('phone').value;
-            payload.client.is_vip = document.getElementById('is_vip').checked;
-
-            payload.address.city = document.getElementById('city').value;
-            payload.address.locality = document.getElementById('locality').value;
-            payload.address.region = document.getElementById('region').value;
-            payload.address.street = document.getElementById('street').value;
-            payload.address.house_number = parseInt(document.getElementById('housenumber').value) || 0;
-            payload.address.letter = document.getElementById('letter').value;
-            payload.address.building = parseInt(document.getElementById('building').value) || null;
-            payload.address.appartment_number = parseInt(document.getElementById('appartment').value) || null;
-
-            payload.contract_number = document.getElementById('contractnumber').value;
-            payload.contract_date = document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null;
-            payload.assigned_month = document.getElementById('assignedmonth').value;
-
-            if (!currentEditId) payload.status = "created";
-
-            try {
-                const res = await fetch(currentEditId ? `${API_URL}/visit/visits/${currentEditId}` : `${API_URL}/visit/visits`, {
-                    method: currentEditId ? 'PUT' : 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) { closeModal('edit-modal'); loadData(); }
-            } catch (e) { alert('Ошибка сети'); }
+            let p = currentEditId ? { ...currentVisitData } : { client: {}, address: {} };
+            p.client.last_name = document.getElementById('lastname').value;
+            p.client.first_name = document.getElementById('firstname').value;
+            p.client.surname = document.getElementById('surname').value;
+            p.client.phone = document.getElementById('phone').value;
+            p.client.is_vip = document.getElementById('is_vip').checked;
+            p.address.region = document.getElementById('region').value;
+            p.address.city = document.getElementById('city').value;
+            p.address.locality = document.getElementById('locality').value;
+            p.address.street = document.getElementById('street').value;
+            p.address.house_number = parseInt(document.getElementById('housenumber').value) || 0;
+            p.address.letter = document.getElementById('letter').value;
+            p.address.building = parseInt(document.getElementById('building').value) || null;
+            p.address.appartment_number = parseInt(document.getElementById('appartment').value) || null;
+            p.contract_number = document.getElementById('contractnumber').value;
+            p.contract_date = document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null;
+            p.assigned_month = document.getElementById('assignedmonth').value;
+            if (!currentEditId) p.status = "created";
+            
+            const res = await fetch(currentEditId ? `${API_URL}/visit/visits/${currentEditId}` : `${API_URL}/visit/visits`, {
+                method: currentEditId ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                body: JSON.stringify(p)
+            });
+            if (res.ok) { closeModal('edit-modal'); loadData(); }
         }
 
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if (id === 'mapping-modal') { rawExcelRows = []; document.getElementById('mapping-container').innerHTML = ''; currentWorkbook = null; }
+        }
         function logout() { localStorage.clear(); window.location.href = '/'; }
-
         function goToProfile() {
             const token = localStorage.getItem('auth_token');
-            if (!token) return window.location.href = '/';
             const payload = JSON.parse(atob(token.split('.')[1]));
             localStorage.setItem('profile_user_id', payload.user_id || payload.id);
             window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
         }
-
         updateSortVisuals();
         loadData();
     </script>

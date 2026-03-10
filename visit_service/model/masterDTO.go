@@ -5,4 +5,5 @@ type MasterDTO struct {
 	Username  string `json:"master_username"`
 	FirstName string `json:"master_firstname"`
 	LastName  string `json:"master_lastname"`
+	Surname   string `json:"master_surname"`
 }

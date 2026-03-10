@@ -61,7 +61,11 @@ func (r *VisitRepository) DeleteVisit(id uint) error {
 
 func (r *VisitRepository) GetVisitByID(id uint) (model.Visit, error) {
 	var visit model.Visit
-	err := r.DB.Model(&model.Visit{ID: id}).Scan(&visit).Error
+	err := r.DB.
+		Preload("Client").
+		Preload("Address").
+		Where("deleted_at IS NULL AND id = ?", id).
+		Find(&visit).Error
 	return visit, err
 }
 
