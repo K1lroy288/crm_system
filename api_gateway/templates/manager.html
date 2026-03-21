@@ -82,7 +82,6 @@
         </div>
     </div>
 
-    <!-- ФИЛЬТРЫ -->
     <div class="filters-container">
         <div class="filters-grid">
             <div class="filter-group"><label>Клиент</label><input type="text" id="f-name" placeholder="Фамилия..." oninput="filterData()"></div>
@@ -119,7 +118,6 @@
         </div>
     </div>
 
-    <!-- ТАБЛИЦА -->
     <div class="card">
         <div class="table-container">
             <table>
@@ -140,7 +138,7 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА: Редактирование -->
+    <!-- МОДАЛКИ -->
     <div class="modal" id="edit-modal">
         <div class="modal-content">
             <h2 id="modal-title">Заявка</h2>
@@ -183,15 +181,19 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА: Настройка импорта Excel -->
     <div class="modal" id="mapping-modal">
         <div class="modal-content" style="max-width: 650px;">
             <h2>Настройка импорта Excel</h2>
             <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 12px; font-size: 13px; color: #856404; border: 1px solid #ffeeba;">
-                💡 <strong>Подсказка:</strong> Выберите нужный лист и строку начала данных.
-                <div style="margin-top: 10px; display: flex; gap: 15px; align-items: center;">
+                💡 <strong>Подсказка:</strong> Выберите нужный лист, тип файла и строку начала данных.
+                <div style="margin-top: 10px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                     Лист: <select id="excel-sheet-select" onchange="onSheetChange()" style="padding: 4px; border-radius: 6px;"></select>
-                    Начать со строки №: <input type="number" id="excel-start-row" value="2" min="1" style="width: 50px; padding: 4px; border-radius: 6px;">
+                    Тип файла: 
+                    <select id="excel-template-select" style="padding: 4px; border-radius: 6px;">
+                        <option value="type1">Реестр</option>
+                        <option value="type2" selected>Поручение</option>
+                    </select>
+                    Начать со строки №: <input type="number" id="excel-start-row" value="9" min="1" style="width: 50px; padding: 4px; border-radius: 6px;">
                 </div>
             </div>
             <div id="mapping-container"></div>
@@ -210,6 +212,16 @@
         let currentVisitData = null; 
         let currentWorkbook = null; 
         let rawExcelRows = []; 
+        let sortField = 'is_vip';
+        let sortOrder = 'desc';
+
+        const statusMap = {
+            'created': { text: 'Создана', class: 'status-created' },
+            'scheduled': { text: 'Распределена', class: 'status-scheduled' },
+            'in_work': { text: 'В работе', class: 'status-in_work' },
+            'done': { text: 'Выполнена', class: 'status-done' },
+            'canceled': { text: 'Отменена', class: 'status-canceled' }
+        };
 
         const DB_FIELDS = [
             { id: 'smart_fio', label: 'ФИО (в одну колонку)*' },
@@ -224,243 +236,10 @@
             { id: 'master_name', label: 'ФИО Мастера' }
         ];
 
-        let sortField = 'is_vip';
-        let sortOrder = 'desc';
+        const REFUSAL_PATTERNS = ['отказ', 'неверный номер', 'не желает', 'отключено', 'недозвон', 'не в сети', 'новый собственник'];
+        const NOISE_KEYWORDS = ['обход', 'проверка', 'техническое', 'инструктаж', 'котел', 'пусконаладка', 'ремонт', 'содержание работ'];
 
-        const statusMap = {
-            'created': { text: 'Создана', class: 'status-created' },
-            'scheduled': { text: 'Распределена', class: 'status-scheduled' },
-            'in_work': { text: 'В работе', class: 'status-in_work' },
-            'done': { text: 'Выполнена', class: 'status-done' },
-            'canceled': { text: 'Отменена', class: 'status-canceled' }
-        };
-
-        // --- УМНЫЙ ПАРСИНГ ---
-
-        function splitSmartFio(str) {
-            if (!str) return { last: '', first: 'Имя', sur: '', extra: '' };
-            const words = str.trim().split(/\s+/);
-            const nameParts = [];
-            const extraParts = [];
-
-            words.forEach((word) => {
-                // Слово считается именем, если оно начинается с заглавной буквы и не содержит цифр/символов
-                // И если мы еще не набрали 3 части (Фамилия Имя Отчество)
-                const isNameLike = /^[А-ЯЁA-Z][а-яёa-z]*$/.test(word.replace(/[^а-яёa-zА-ЯЁA-Z]/g, ''));
-                
-                if (nameParts.length < 3 && isNameLike) {
-                    nameParts.push(word);
-                } else {
-                    extraParts.push(word);
-                }
-            });
-
-            return {
-                last: nameParts[0] || '',
-                first: nameParts[1] || 'Имя',
-                sur: nameParts[2] || '',
-                extra: extraParts.join(' ') // Лишний текст
-            };
-        }
-
-        function extractPhones(raw) {
-            if (!raw) return "";
-            const parts = String(raw).split(/[;,\n]+/);
-            const unique = new Set();
-            parts.forEach(part => {
-                let digits = part.replace(/\D/g, '');
-                if (digits.length === 11 && (digits[0] === '7' || digits[0] === '8')) {
-                    unique.add("7" + digits.substring(1));
-                } else if (digits.length === 10) {
-                    unique.add("7" + digits);
-                } else if (digits.length === 7) {
-                    unique.add("7812" + digits);
-                }
-            });
-            return Array.from(unique).join('; ');
-        }
-
-        function extractTime(timeRaw) {
-            if (!timeRaw) return { time: null, comment: null };
-            const timeStr = String(timeRaw).trim();
-            const timeRegex = /(?:с\s+)?(\d{1,2}[.:]\d{2})\s*(?:до|-|–)\s*(\d{1,2}[.:]\d{2})/i;
-            const match = timeStr.match(timeRegex);
-            if (match) {
-                const extracted = `${match[1].replace('.', ':')}-${match[2].replace('.', ':')}`;
-                const remaining = timeStr.replace(match[0], '').replace(/^[,\s]+/, '').trim();
-                return { time: extracted, comment: remaining || null };
-            }
-            return { time: null, comment: timeStr };
-        }
-
-        function parseSmartAddress(str) {
-            const res = { region: '', city: '', locality: '', street: '', house: 0, letter: '', build: '' };
-            if (!str) return res;
-            const cityMatch = str.match(/г\.\s?([А-Яа-я\-]+)/);
-            if (cityMatch) res.city = cityMatch[1];
-            const regionMatch = str.match(/район\s?([А-Яа-я\-]+)/);
-            if (regionMatch) res.region = regionMatch[1];
-            const streetMatch = str.match(/(?:улица|ул\.|пер\.|переулок)\s?([А-Яа-я\s\-]+?)(?:,|$)/);
-            if (streetMatch) res.street = streetMatch[1].trim();
-            const houseMatch = str.match(/(?:дом|д\.)\s?(\d+)/);
-            if (houseMatch) res.house = parseInt(houseMatch[1]);
-            const letterMatch = str.match(/литер\s?([А-Яа-яA-Za-z])/);
-            if (letterMatch) res.letter = letterMatch[1];
-            const buildMatch = str.match(/(?:строение|корпус|к\.)\s?(\d+)/);
-            if (buildMatch) res.build = buildMatch[1];
-            if (!res.city) res.city = str.split(',')[0].trim();
-            return res;
-        }
-
-        function parseSmartContract(str) {
-            if (!str) return { num: '', date: null };
-            const contractRegex = /№\s?([\d.ТОд]+)\s+от\s+(\d{2}\.\d{2}\.\d{4})/;
-            const match = str.match(contractRegex);
-            if (match) {
-                const [d, m, y] = match[2].split('.');
-                return { num: `№${match[1]}`, date: `${y}-${m}-${d}T00:00:00Z` };
-            }
-            return { num: str.trim(), date: null };
-        }
-
-        function parseExcelDate(val) {
-            if (!val) return null;
-            if (typeof val === 'number') {
-                const date = new Date((val - 25569) * 86400 * 1000);
-                return date.toISOString();
-            }
-            const str = String(val).trim();
-            const dateMatch = str.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-            if (dateMatch) {
-                const day = dateMatch[1].padStart(2, '0');
-                const month = dateMatch[2].padStart(2, '0');
-                const year = dateMatch[3];
-                return `${year}-${month}-${day}T00:00:00Z`;
-            }
-            return null;
-        }
-
-        function findMasterId(masterRawName) {
-            if (!masterRawName) return null;
-            const lastName = String(masterRawName).trim().split(' ')[0].toLowerCase();
-            const master = allMasters.find(m => (m.last_name || '').toLowerCase() === lastName);
-            return master ? master.id : null;
-        }
-
-        // --- EXCEL ---
-
-        function handleExcel(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                currentWorkbook = XLSX.read(data, { type: 'array' });
-                const select = document.getElementById('excel-sheet-select');
-                select.innerHTML = currentWorkbook.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
-                onSheetChange();
-                document.getElementById('mapping-modal').style.display = 'flex';
-            };
-            reader.readAsArrayBuffer(file);
-            event.target.value = ''; 
-        }
-
-        function onSheetChange() {
-            const sheetName = document.getElementById('excel-sheet-select').value;
-            rawExcelRows = XLSX.utils.sheet_to_json(currentWorkbook.Sheets[sheetName], { header: 1 });
-            showMappingUI();
-        }
-
-        function showMappingUI() {
-            const container = document.getElementById('mapping-container');
-            container.innerHTML = '';
-            const sample = rawExcelRows[9] || rawExcelRows[1] || rawExcelRows[0] || [];
-            DB_FIELDS.forEach(field => {
-                let opts = '<option value="-1">-- Пропустить --</option>';
-                sample.forEach((c, i) => {
-                    const letter = String.fromCharCode(65 + i);
-                    opts += `<option value="${i}">Кол. ${letter} (${String(c||'').substring(0,12)})</option>`;
-                });
-                container.innerHTML += `<div class="mapping-row"><span class="mapping-label">${field.label}</span><select class="excel-col-selector" data-db-field="${field.id}">${opts}</select></div>`;
-            });
-        }
-
-        async function processImport() {
-            const btnSubmit = document.getElementById('import-submit-btn');
-            const btnCancel = document.getElementById('import-cancel-btn');
-            const startRow = parseInt(document.getElementById('excel-start-row').value) - 1;
-            const mapping = {};
-            document.querySelectorAll('.excel-col-selector').forEach(s => {
-                const val = parseInt(s.value);
-                if (val !== -1) mapping[s.getAttribute('data-db-field')] = val;
-            });
-
-            if (mapping.smart_fio === undefined) return alert("Сопоставьте ФИО");
-
-            btnSubmit.disabled = true;
-            btnSubmit.innerText = "Загрузка...";
-            btnCancel.style.display = "none";
-            document.getElementById('main-loader').style.display = 'inline-block';
-
-            let success = 0;
-            let lastFio = "", lastPhone = "", lastAddr = "", lastContract = "";
-
-            for (let i = startRow; i < rawExcelRows.length; i++) {
-                const row = rawExcelRows[i];
-                if (!row || row.length === 0) continue;
-
-                const fRaw = row[mapping.smart_fio] ? String(row[mapping.smart_fio]) : lastFio;
-                const pRaw = mapping.phone !== undefined ? (row[mapping.phone] ? String(row[mapping.phone]) : lastPhone) : lastPhone;
-                const aRaw = mapping.smart_address !== undefined ? (row[mapping.smart_address] ? String(row[mapping.smart_address]) : lastAddr) : lastAddr;
-                const cRaw = mapping.smart_contract !== undefined ? (row[mapping.smart_contract] ? String(row[mapping.smart_contract]) : lastContract) : lastContract;
-
-                if (!fRaw) continue;
-                lastFio = fRaw; lastPhone = pRaw; lastAddr = aRaw; lastContract = cRaw;
-
-                const fioData = splitSmartFio(fRaw); // Теперь возвращает {last, first, sur, extra}
-                const phonesCleaned = extractPhones(pRaw);
-                const addr = parseSmartAddress(aRaw);
-                const contract = parseSmartContract(cRaw);
-                const timeData = extractTime(row[mapping.time_info]);
-                
-                const masterId = mapping.master_name !== undefined ? findMasterId(row[mapping.master_name]) : null;
-                const status = masterId ? "scheduled" : "created";
-
-                // Объединяем лишний текст из ФИО и комментарий из времени
-                const combinedComment = [fioData.extra, timeData.comment].filter(Boolean).join('; ');
-
-                const payload = {
-                    client: { last_name: fioData.last, first_name: fioData.first, surname: fioData.sur, phone: phonesCleaned, is_vip: false },
-                    address: { region: addr.region, city: addr.city, street: addr.street, house_number: addr.house, letter: addr.letter, building: parseInt(addr.build) || null },
-                    contract_number: contract.num,
-                    contract_date: contract.date,
-                    assigned_month: String(row[mapping.assigned_month] || ''),
-                    scheduled_date: mapping.scheduled_date !== undefined ? parseExcelDate(row[mapping.scheduled_date]) : null,
-                    amount: mapping.amount !== undefined ? parseFloat(String(row[mapping.amount] || '0').replace(',', '.')) : 0,
-                    equipment_description: mapping.equipment_description !== undefined ? String(row[mapping.equipment_description] || '') : '',
-                    scheduled_time: timeData.time,
-                    dispatcher_comment: combinedComment,
-                    master_id: masterId,
-                    status: status
-                };
-
-                const res = await fetch(`${API_URL}/visit/visits`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) success++;
-            }
-            
-            alert(`Импорт завершен! Загружено: ${success}`);
-            btnSubmit.disabled = false;
-            btnSubmit.innerText = "Начать загрузку";
-            btnCancel.style.display = "inline-block";
-            closeModal('mapping-modal');
-            loadData();
-        }
-
-        // --- СТАНДАРТНАЯ ЛОГИКА ---
+        // --- ЛОГИКА ОТОБРАЖЕНИЯ (ВОССТАНОВЛЕНА) ---
 
         async function loadData() {
             document.getElementById('main-loader').style.display = 'inline-block';
@@ -504,27 +283,13 @@
             applySort(filtered);
         }
 
-        function setSort(field) {
-            if (sortField === field) sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-            else { sortField = field; sortOrder = 'asc'; }
-            updateSortVisuals();
-            filterData();
-        }
-
-        function updateSortVisuals() {
-            document.querySelectorAll('th').forEach(th => {
-                th.classList.remove('sort-asc', 'sort-desc');
-                if (th.getAttribute('data-field') === sortField) th.classList.add(sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
-            });
-        }
-
         function applySort(data) {
             const acc = {
                 is_vip: v => v.client.is_vip,
                 last_name: v => v.client.last_name.toLowerCase(),
                 phone: v => v.client.phone,
                 city: v => (v.address.region + v.address.city + v.address.street).toLowerCase(),
-                contract_number: v => v.contract_number.toLowerCase(),
+                contract_number: v => (v.contract_number || "").toLowerCase(),
                 contract_date: v => v.contract_date || '',
                 status: v => v.status
             };
@@ -545,23 +310,12 @@
                 if (v.client.is_vip) row.classList.add('is-vip-row');
                 const st = statusMap[v.status] || { text: v.status, class: '' };
                 const a = v.address;
-                const addrParts = [];
-                if (a.city) addrParts.push(`г. ${a.city}`);
-                if (a.region) addrParts.push(`р-н ${a.region}`);
-                if (a.locality) addrParts.push(`р-н ${a.locality}`);
-                if (a.street) addrParts.push(`ул. ${a.street}`);
-                if (a.house_number) {
-                    let h = `д. ${a.house_number}${a.letter||''}`;
-                    addrParts.push(h);
-                }
-                if (a.building) addrParts.push(`к. ${a.building}`);
-                if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
-
+                const addr = [a.city ? 'г. '+a.city : '', a.region ? 'р-н '+a.region : '', a.locality ? 'р-н '+a.locality : '', a.street ? 'ул. '+a.street : '', a.house_number ? 'д.'+a.house_number : ''].filter(Boolean).join(', ');
                 row.innerHTML = `
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
                     <td><strong>${v.client.last_name}</strong> ${v.client.first_name} ${v.client.surname || ''}</td>
                     <td>${v.client.phone}</td>
-                    <td style="max-width:320px;">${addrParts.join(', ') || '-'}</td>
+                    <td style="max-width:320px;">${addr}</td>
                     <td>${v.contract_number || '-'}</td>
                     <td>${v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '-'}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
@@ -570,6 +324,222 @@
                 tbody.appendChild(row);
             });
         }
+
+        function updateSortVisuals() {
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.getAttribute('data-field') === sortField) th.classList.add(sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+            });
+        }
+
+        function setSort(field) {
+            sortOrder = (sortField === field && sortOrder === 'asc') ? 'desc' : 'asc';
+            sortField = field;
+            updateSortVisuals();
+            filterData();
+        }
+
+        // --- УМНЫЙ ПАРСИНГ ---
+
+        function splitSmartFio(str) {
+            if (!str) return { last: '', first: 'Имя', sur: '', extra: '' };
+            const words = str.trim().split(/\s+/);
+            const nameParts = [];
+            const extraParts = [];
+            words.forEach((word) => {
+                const isNameLike = /^[А-ЯЁA-Z][а-яёa-z]*$/.test(word.replace(/[^а-яёa-zА-ЯЁA-Z]/g, ''));
+                if (nameParts.length < 3 && isNameLike) nameParts.push(word);
+                else extraParts.push(word);
+            });
+            return { last: nameParts[0] || '', first: nameParts[1] || 'Имя', sur: nameParts[2] || '', extra: extraParts.join(' ') };
+        }
+
+        function extractPhones(raw) {
+            if (!raw) return "";
+            const parts = String(raw).split(/[;,\n]+/);
+            const unique = new Set();
+            parts.forEach(part => {
+                let digits = part.replace(/\D/g, '');
+                if (digits.length === 11 && (digits[0] === '7' || digits[0] === '8')) unique.add("7" + digits.substring(1));
+                else if (digits.length === 10) unique.add("7" + digits);
+                else if (digits.length === 7) unique.add("7812" + digits);
+            });
+            return Array.from(unique).join('; ');
+        }
+
+        function extractTime(timeRaw) {
+            if (!timeRaw) return { time: null, comment: null };
+            const timeStr = String(timeRaw).trim();
+            const timeRegex = /(?:с\s+)?(\d{1,2}[.:]\d{2})\s*(?:до|-|–)\s*(\d{1,2}[.:]\d{2})/i;
+            const match = timeStr.match(timeRegex);
+            if (match) {
+                const extracted = `${match[1].replace('.', ':')}-${match[2].replace('.', ':')}`;
+                const remaining = timeStr.replace(match[0], '').replace(/^[,\s]+/, '').trim();
+                return { time: extracted, comment: remaining || null };
+            }
+            return { time: null, comment: timeStr };
+        }
+
+        function parseSmartAddress(str) {
+            const res = { region: '', city: '', locality: '', street: '', house: 0, letter: '', build: '' };
+            if (!str) return res;
+            const cityMatch = str.match(/г\.\s?([А-Яа-я\-]+)/);
+            if (cityMatch) res.city = cityMatch[1];
+            const regionMatch = str.match(/район\s?([А-Яа-я\-]+)/);
+            if (regionMatch) res.region = regionMatch[1];
+            const streetMatch = str.match(/(?:улица|ул\.|пер\.|переулок|переулок)\s?([А-Яа-я\s\-]+?)(?:,|$)/);
+            if (streetMatch) res.street = streetMatch[1].trim();
+            const houseMatch = str.match(/(?:дом|д\.)\s?(\d+)/);
+            if (houseMatch) res.house = parseInt(houseMatch[1]);
+            if (!res.city) res.city = str.split(',')[0].trim();
+            return res;
+        }
+
+        function parseSmartContract(str) {
+            if (!str) return { num: '', date: null };
+            const contractRegex = /№\s?([\d.ТОд\-]+)\s+от\s+(\d{2}\.\d{2}\.\d{4})/;
+            const match = str.match(contractRegex);
+            if (match) {
+                const [d, m, y] = match[2].split('.');
+                return { num: `№${match[1]}`, date: `${y}-${m}-${d}T00:00:00Z` };
+            }
+            return { num: str.trim(), date: null };
+        }
+
+        function parseExcelDate(val) {
+            if (!val) return null;
+            if (typeof val === 'number') return new Date((val - 25569) * 86400 * 1000).toISOString();
+            const dateMatch = String(val).match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+            if (dateMatch) return `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}T00:00:00Z`;
+            return null;
+        }
+
+        function findMasterId(masterRawName) {
+            if (!masterRawName) return null;
+            const words = String(masterRawName).trim().split(' ');
+            if (!words[0] || !/^[А-ЯЁ][а-яё]+$/.test(words[0])) return null;
+            const lastName = words[0].toLowerCase();
+            const master = allMasters.find(m => (m.last_name || '').toLowerCase() === lastName);
+            return master ? master.id : null;
+        }
+
+        function checkRefusal(text) {
+            if (!text) return false;
+            const t = text.toLowerCase();
+            return REFUSAL_PATTERNS.some(p => t.includes(p));
+        }
+
+        // --- EXCEL ---
+
+        function handleExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                currentWorkbook = XLSX.read(data, { type: 'array' });
+                const select = document.getElementById('excel-sheet-select');
+                select.innerHTML = currentWorkbook.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+                onSheetChange();
+                document.getElementById('mapping-modal').style.display = 'flex';
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = ''; 
+        }
+
+        function onSheetChange() {
+            const sheetName = document.getElementById('excel-sheet-select').value;
+            rawExcelRows = XLSX.utils.sheet_to_json(currentWorkbook.Sheets[sheetName], { header: 1 });
+            showMappingUI();
+        }
+
+        function showMappingUI() {
+            const container = document.getElementById('mapping-container');
+            const startRowInput = parseInt(document.getElementById('excel-start-row').value) || 2;
+            const sampleIdx = startRowInput - 1; 
+            const sample = rawExcelRows[sampleIdx] || rawExcelRows[sampleIdx + 1] || rawExcelRows[0] || [];
+            
+            container.innerHTML = '';
+            DB_FIELDS.forEach(field => {
+                let opts = '<option value="-1">-- Пропустить --</option>';
+                sample.forEach((c, i) => {
+                    const letter = String.fromCharCode(65 + i);
+                    const preview = c ? String(c).substring(0,25) : 'пусто';
+                    opts += `<option value="${i}">Кол. ${letter} (${preview})</option>`;
+                });
+                container.innerHTML += `<div class="mapping-row"><span class="mapping-label">${field.label}</span><select class="excel-col-selector" data-db-field="${field.id}">${opts}</select></div>`;
+            });
+        }
+
+        async function processImport() {
+            const btnSubmit = document.getElementById('import-submit-btn');
+            const startRow = (parseInt(document.getElementById('excel-start-row').value) || 2) - 1;
+            const template = document.getElementById('excel-template-select').value;
+            const mapping = {};
+            document.querySelectorAll('.excel-col-selector').forEach(s => {
+                const val = parseInt(s.value);
+                if (val !== -1) mapping[s.getAttribute('data-db-field')] = val;
+            });
+
+            if (mapping.smart_fio === undefined) return alert("Сопоставьте ФИО");
+
+            btnSubmit.disabled = true; btnSubmit.innerText = "Загрузка...";
+            document.getElementById('main-loader').style.display = 'inline-block';
+
+            let lastFio = "", lastPhone = "", lastAddr = "", lastContract = "";
+
+            for (let i = startRow; i < rawExcelRows.length; i++) {
+                const row = rawExcelRows[i];
+                if (!row || row.length === 0 || row.every(c => !c)) continue;
+
+                if (template === 'type2') {
+                    const cellValue = String(row[mapping.smart_fio] || "").toLowerCase();
+                    if (NOISE_KEYWORDS.some(k => cellValue.includes(k))) continue;
+                    if (!row[mapping.smart_fio]) continue;
+                }
+
+                const fRaw = row[mapping.smart_fio] ? String(row[mapping.smart_fio]) : lastFio;
+                const pRaw = mapping.phone !== -1 && row[mapping.phone] ? String(row[mapping.phone]) : lastPhone;
+                const aRaw = mapping.smart_address !== -1 && row[mapping.smart_address] ? String(row[mapping.smart_address]) : lastAddr;
+                const cRaw = mapping.smart_contract !== -1 && row[mapping.smart_contract] ? String(row[mapping.smart_contract]) : lastContract;
+
+                if (!fRaw.trim()) continue;
+                lastFio = fRaw; lastPhone = pRaw; lastAddr = aRaw; lastContract = cRaw;
+
+                const fioData = splitSmartFio(fRaw);
+                const addrData = parseSmartAddress(aRaw);
+                const contData = parseSmartContract(cRaw);
+                const timeData = extractTime(row[mapping.time_info]);
+                const masterId = mapping.master_name !== -1 ? findMasterId(row[mapping.master_name]) : null;
+                const refusalInfo = (template === 'type2' && (checkRefusal(fRaw) || checkRefusal(String(row[mapping.time_info]||"")))) ? "ОТКАЗ/НЕУДАЧА" : "";
+                
+                const payload = {
+                    client: { last_name: fioData.last, first_name: fioData.first, surname: fioData.sur, phone: extractPhones(pRaw), is_vip: false },
+                    address: { region: addrData.region, city: addrData.city, street: addrData.street, house_number: addrData.house, building: parseInt(addrData.build) || null },
+                    contract_number: contData.num,
+                    contract_date: contData.date,
+                    assigned_month: String(row[mapping.assigned_month] || ''),
+                    scheduled_date: mapping.scheduled_date !== -1 ? parseExcelDate(row[mapping.scheduled_date]) : null,
+                    amount: mapping.amount !== -1 ? parseFloat(String(row[mapping.amount] || '0').replace(',', '.')) : 0,
+                    equipment_description: mapping.equipment_description !== -1 ? String(row[mapping.equipment_description] || '') : '',
+                    scheduled_time: timeData.time,
+                    dispatcher_comment: [fioData.extra, timeData.comment, refusalInfo].filter(Boolean).join('; '),
+                    master_id: masterId,
+                    status: masterId ? "scheduled" : "created"
+                };
+
+                await fetch(`${API_URL}/visit/visits`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                    body: JSON.stringify(payload)
+                });
+            }
+            btnSubmit.disabled = false; btnSubmit.innerText = "Начать загрузку";
+            closeModal('mapping-modal');
+            loadData();
+        }
+
+        // --- CRUD ---
 
         function openEditModal() {
             currentEditId = null; currentVisitData = null;
@@ -633,6 +603,7 @@
             document.getElementById(id).style.display = 'none'; 
             if (id === 'mapping-modal') { rawExcelRows = []; document.getElementById('mapping-container').innerHTML = ''; currentWorkbook = null; }
         }
+
         function logout() { localStorage.clear(); window.location.href = '/'; }
         function goToProfile() {
             const token = localStorage.getItem('auth_token');
@@ -640,7 +611,7 @@
             localStorage.setItem('profile_user_id', payload.user_id || payload.id);
             window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
         }
-        updateSortVisuals();
+        
         loadData();
     </script>
 </body>
