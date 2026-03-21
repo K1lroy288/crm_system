@@ -5,6 +5,7 @@ type UserDTO struct {
 	Username  string    `json:"username"`
 	FirstName string    `json:"first_name"`
 	Lastname  string    `json:"last_name"`
+	Surname   string    `json:"surname"`
 	Password  string    `json:"password"`
 	Roles     []RoleDTO `json:"roles"`
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 	"visit-service/client"
 	"visit-service/config"
 	"visit-service/model"
@@ -27,6 +28,7 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 		LastName:  visit.Client.LastName,
 		Surname:   visit.Client.Surname,
 		Phone:     visit.Client.Phone,
+		IsVip:     visit.Client.IsVip,
 	}
 
 	if err := s.repository.CreateClient(client); err != nil {
@@ -57,6 +59,8 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 		EquipmentDescription: visit.EquipmentDescription,
 		AssignedMonth:        visit.AssignedMonth,
 		Amount:               visit.Amount,
+		Status:               visit.Status,
+		DispatcherComment:    visit.DispatcherComment,
 
 		Client:  *client,
 		Address: *address,
@@ -70,11 +74,33 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 	return nil
 }
 
-func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
-	visits, err := s.repository.GetVisits()
-	if err != nil {
-		log.Printf("error getting visits from DB: %v", err)
-		return []model.VisitDTO{}, nil
+func (s *VisitService) GetVisits(dateStr, masterIDStr string) ([]model.VisitDTO, error) {
+	visits := []model.Visit{}
+	if dateStr != "" || masterIDStr != "" {
+		date, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			log.Printf("error parse scheduled_date getVisits: %v", err)
+			return []model.VisitDTO{}, err
+		}
+
+		masterID, err := strconv.Atoi(masterIDStr)
+		if err != nil {
+			log.Printf("error parse master id getVisits: %v", err)
+			return []model.VisitDTO{}, err
+		}
+
+		visits, err = s.repository.GetMasterVisitsByDate(date, masterID)
+		if err != nil {
+			log.Printf("error getting visits from DB: %v", err)
+			return []model.VisitDTO{}, err
+		}
+	} else {
+		var err error
+		visits, err = s.repository.GetVisits()
+		if err != nil {
+			log.Printf("error getting visits from DB: %v", err)
+			return []model.VisitDTO{}, nil
+		}
 	}
 
 	var masterIDs []uint
@@ -85,6 +111,7 @@ func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
 	}
 
 	var masters []model.MasterDTO
+	var err error
 	if len(masterIDs) > 0 {
 		masters, err = s.client.GetMastersByIDs(masterIDs)
 		if err != nil {
@@ -105,11 +132,13 @@ func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
 				LastName  string `json:"last_name"`
 				Surname   string `json:"surname"`
 				Phone     string `json:"phone"`
+				IsVip     bool   `json:"is_vip"`
 			}{
 				FirstName: vis.Client.FirstName,
 				LastName:  vis.Client.LastName,
 				Surname:   vis.Client.Surname,
 				Phone:     vis.Client.Phone,
+				IsVip:     vis.Client.IsVip,
 			},
 			Address: struct {
 				City             string `json:"city"`
@@ -139,6 +168,8 @@ func (s *VisitService) GetVisits() ([]model.VisitDTO, error) {
 			AssignedMonth:        vis.AssignedMonth,
 			Amount:               vis.Amount,
 			MasterID:             vis.MasterID,
+			Status:               vis.Status,
+			DispatcherComment:    vis.DispatcherComment,
 		}
 
 		visitsDTO = append(visitsDTO, visDTO)
@@ -168,6 +199,7 @@ func (s *VisitService) UpdateVisit(id uint, visitDTO *model.VisitDTO) error {
 	existingVisit.Client.LastName = visitDTO.Client.LastName
 	existingVisit.Client.Surname = visitDTO.Client.Surname
 	existingVisit.Client.Phone = visitDTO.Client.Phone
+	existingVisit.Client.IsVip = visitDTO.Client.IsVip
 
 	if err := s.repository.UpdateClient(&existingVisit.Client); err != nil {
 		return err
@@ -194,6 +226,8 @@ func (s *VisitService) UpdateVisit(id uint, visitDTO *model.VisitDTO) error {
 	existingVisit.AssignedMonth = visitDTO.AssignedMonth
 	existingVisit.Amount = visitDTO.Amount
 	existingVisit.MasterID = visitDTO.MasterID
+	existingVisit.Status = visitDTO.Status
+	existingVisit.DispatcherComment = visitDTO.DispatcherComment
 
 	return s.repository.UpdateVisit(&existingVisit)
 }

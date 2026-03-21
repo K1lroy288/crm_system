@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои выезды</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: #f2f2f7; padding: 15px; padding-bottom: 80px; }
+        
+        .header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-size: 18px; color: #1c1c1e; }
+
+        .date-selector { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; }
+        .date-selector label { font-size: 14px; font-weight: 600; color: #666; }
+        .date-selector input { border: 1px solid #ddd; padding: 8px; border-radius: 8px; flex-grow: 1; font-size: 16px; outline: none; background: #fff; }
+
+        .task-card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #e5e5ea; }
+        .task-card.active { border: 2px solid #007AFF; background: #f0f7ff; }
+        .task-card.completed { border-color: #34C759; background: #f2faf3; opacity: 0.8; }
+        
+        .time-badge { font-size: 13px; font-weight: 600; color: #007AFF; margin-bottom: 8px; display: block; }
+        .client-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; color: #1c1c1e; }
+        .address { font-size: 14px; color: #3a3a3c; margin-bottom: 12px; line-height: 1.4; background: #f8f9fa; padding: 8px; border-radius: 8px; }
+        
+        .info-row { font-size: 14px; color: #3a3a3c; margin-bottom: 5px; display: flex; align-items: flex-start; gap: 5px; }
+        .vip-tag { background: #FF9500; color: white; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .btn { border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; transition: 0.2s; }
+        
+        .btn-call { background: #34C759; color: white; }
+        .btn-outline { background: white; color: #007AFF; border: 1px solid #007AFF; }
+        .btn-start { background: #007AFF; color: white; width: 100%; grid-column: 1 / -1; }
+        .btn-done { background: #34C759; color: white; width: 100%; grid-column: 1 / -1; }
+        .btn-logout { background: #FF3B30; color: white; padding: 8px 12px; font-size: 12px; }
+        .btn-profile { background: white; color: #1c1c1e; border: 1px solid #d1d1d6; padding: 8px 12px; font-size: 12px; }
+
+        /* Модалка выбора телефона */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: flex-end; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .phone-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-phone { background: #f2f2f7; color: #007AFF; padding: 15px; border-radius: 12px; text-decoration: none; text-align: center; font-weight: 600; font-size: 18px; }
+
+        .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-top">
+            <h1>🛠 Мои заявки</h1>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-profile" onclick="goToProfile()">👤</button>
+                <button class="btn btn-logout" onclick="logout()">Выход</button>
+            </div>
+        </div>
+        <div class="date-selector">
+            <label>Дата:</label>
+            <input type="date" id="task-date" onchange="loadTasks()">
+        </div>
+    </div>
+
+    <div id="main-loader" class="loader"></div>
+    <div id="task-list"></div>
+
+    <!-- Модалка выбора телефона -->
+    <div class="modal" id="phone-modal">
+        <div class="modal-content">
+            <h2 style="font-size: 18px; text-align: center;">Выберите номер для звонка</h2>
+            <div class="phone-list" id="phone-options"></div>
+            <button class="btn btn-outline" style="width: 100%; margin-top: 15px; border: none; color: #FF3B30;" onclick="closePhoneModal()">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+        
+        document.getElementById('task-date').valueAsDate = new Date();
+
+        function getMyId() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return logout();
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.user_id || payload.id;
+        }
+
+        async function loadTasks() {
+            const selectedDate = document.getElementById('task-date').value;
+            const loader = document.getElementById('main-loader');
+            const container = document.getElementById('task-list');
+            
+            loader.style.display = 'block';
+            container.innerHTML = '';
+            
+            const myId = getMyId();
+            
+            try {
+                const res = await fetch(`${API_URL}/visit/visits?date=${selectedDate}&master_id=${myId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                });
+                if (!res.ok) throw new Error("Server error");
+                const myVisits = await res.json();
+                
+                if (!myVisits || myVisits.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На этот день заявок нет 🙌</p>';
+                } else {
+                    renderTasks(myVisits);
+                }
+            } catch (e) { 
+                container.innerHTML = '<p style="text-align:center; color:red; margin-top:50px;">Ошибка загрузки данных</p>';
+            } finally { 
+                loader.style.display = 'none'; 
+            }
+        }
+
+        function formatFullAddress(a) {
+            const addrParts = [];
+            if (a.city) addrParts.push(`г. ${a.city}`);
+            if (a.region) addrParts.push(`р-н ${a.region}`);
+            if (a.locality) addrParts.push(`р-н ${a.locality}`);
+            if (a.street) addrParts.push(`ул. ${a.street}`);
+            if (a.house_number) {
+                let h = `д. ${a.house_number}`;
+                if (a.letter) h += a.letter;
+                addrParts.push(h);
+            }
+            if (a.building) addrParts.push(`к. ${a.building}`);
+            if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
+
+            return addrParts.join(', ') || 'Адрес не указан';
+        }
+
+        function renderTasks(tasks) {
+            const container = document.getElementById('task-list');
+            tasks.sort((a,b) => (a.status === 'in_work' ? -1 : 1));
+
+            tasks.forEach(t => {
+                const card = document.createElement('div');
+                card.className = `task-card ${t.status === 'in_work' ? 'active' : ''} ${t.status === 'done' ? 'completed' : ''}`;
+                
+                const fullAddr = formatFullAddress(t.address);
+                const isDone = t.status === 'done';
+                
+                // Формируем полное имя с отчеством
+                const fullName = `${t.client.last_name} ${t.client.first_name} ${t.client.surname || ''}`.trim();
+                
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <span class="time-badge">🕒 ${t.scheduled_time || 'Время не указано'}</span>
+                        ${t.client.is_vip ? '<span class="vip-tag">⭐️ VIP</span>' : ''}
+                    </div>
+                    <div class="client-name">${fullName}</div>
+                    <div class="address">📍 ${fullAddr}</div>
+                    
+                    <div style="background:#f1f1f7; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px;">
+                        <div class="info-row"><strong>Прибор:</strong> ${t.equipment_description || '—'}</div>
+                        <div class="info-row"><strong>Заметка:</strong> ${t.dispatcher_comment || '—'}</div>
+                    </div>
+
+                    ${!isDone ? `
+                        <div class="actions">
+                            <button class="btn btn-call" onclick="initiateCall('${t.client.phone}')">📞 Позвонить</button>
+                            <button class="btn btn-outline" onclick="openMap('${fullAddr.replace(/'/g, "\\'")}')">🗺 Карта</button>
+                            
+                            ${t.status === 'in_work' 
+                                ? `<button class="btn btn-done" onclick='handleCompleteWork(${JSON.stringify(t)})'>✅ ЗАВЕРШИТЬ</button>`
+                                : `<button class="btn btn-start" onclick='handleStartWork(${JSON.stringify(t)})'>🚀 Я НА МЕСТЕ</button>`
+                            }
+                        </div>
+                    ` : '<div style="text-align:center; color:#34C759; font-weight:bold; font-size:14px;">✓ Выполнено</div>'}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- ЛОГИКА ЗВОНКА ---
+        function initiateCall(phoneStr) {
+            if (!phoneStr) return alert("Номер телефона не указан");
+            
+            const phones = phoneStr.split(/[;|,]/).map(p => p.trim()).filter(p => p.length > 0);
+            
+            if (phones.length === 1) {
+                window.location.href = `tel:${phones[0]}`;
+            } else {
+                const container = document.getElementById('phone-options');
+                container.innerHTML = '';
+                phones.forEach(phone => {
+                    const btn = document.createElement('a');
+                    btn.className = 'btn-phone';
+                    btn.href = `tel:${phone}`;
+                    btn.innerText = phone;
+                    btn.onclick = closePhoneModal;
+                    container.appendChild(btn);
+                });
+                document.getElementById('phone-modal').style.display = 'flex';
+            }
+        }
+
+        function closePhoneModal() {
+            document.getElementById('phone-modal').style.display = 'none';
+        }
+
+        async function handleStartWork(visit) {
+            if (!confirm("Подтвердите прибытие на объект?")) return;
+            updateVisitStatus(visit, "in_work");
+        }
+
+        async function handleCompleteWork(visit) {
+            if (!confirm("Вы уверены, что работа завершена?")) return;
+            updateVisitStatus(visit, "done");
+        }
+
+        async function updateVisitStatus(visit, newStatus) {
+            const token = localStorage.getItem('auth_token');
+            const payload = { 
+                ...visit, 
+                status: newStatus,
+                actual_start_at: newStatus === 'in_work' ? new Date().toISOString() : visit.actual_start_at,
+                actual_end_at: newStatus === 'done' ? new Date().toISOString() : visit.actual_end_at
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/visit/visits/${visit.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) loadTasks();
+                else alert("Ошибка при обновлении статуса");
+            } catch (e) { alert('Ошибка сети'); }
+        }
+
+        function openMap(fullAddr) {
+            const cleanAddr = fullAddr.replace(/(обл\.|г\.|р-н|ул\.|д\.|к\.|кв\.)/g, '').trim();
+            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(cleanAddr)}`, '_blank');
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '/'; }
+
+        function goToProfile() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return logout();
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            localStorage.setItem('profile_user_id', payload.user_id || payload.id);
+            window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
+        }
+
+        loadTasks();
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('phone-modal');
+            if (event.target === modal) closePhoneModal();
+        }
+    </script>
+</body>
+</html>

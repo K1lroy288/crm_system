@@ -1,0 +1,1 @@
+ALTER TABLE visits ADD COLUMN dispatcher_comment TEXT;

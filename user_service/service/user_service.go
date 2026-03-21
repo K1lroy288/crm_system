@@ -54,6 +54,7 @@ func (s *UserService) CreateUser(userDTO model.UserDTO) error {
 		Username:     userDTO.Username,
 		FirstName:    userDTO.FirstName,
 		LastName:     userDTO.Lastname,
+		Surname:      userDTO.Surname,
 		PasswordHash: hashedPassword,
 		Roles:        currRoles,
 	}
@@ -72,6 +73,7 @@ func (s *UserService) GetUserByLastname(lastname string) (*model.UserDTO, error)
 		Username:  user.Username,
 		FirstName: user.FirstName,
 		Lastname:  user.LastName,
+		Surname:   user.Surname,
 	}
 	return userDTO, nil
 }
@@ -89,6 +91,7 @@ func (s *UserService) GetMasters() ([]model.UserDTO, error) {
 			Username:  master.Username,
 			FirstName: master.FirstName,
 			Lastname:  master.LastName,
+			Surname:   master.Surname,
 		}
 
 		mastersDTO = append(mastersDTO, *masterDTO)
@@ -110,6 +113,7 @@ func (s *UserService) GetMastersByIDs(mastersIDs []uint) ([]model.UserDTO, error
 			Username:  master.Username,
 			FirstName: master.FirstName,
 			Lastname:  master.LastName,
+			Surname:   master.Surname,
 		}
 
 		mastersDTO = append(mastersDTO, *masterDTO)
@@ -129,6 +133,7 @@ func (s *UserService) GetUserInfo(id uint) (*model.UserDTO, error) {
 		Username:  user.Username,
 		FirstName: user.FirstName,
 		Lastname:  user.LastName,
+		Surname:   user.Surname,
 	}
 
 	return userDTO, err
@@ -143,6 +148,7 @@ func (s *UserService) UpdateUser(userDTO model.UserDTO) error {
 	existingUser.Username = userDTO.Username
 	existingUser.FirstName = userDTO.FirstName
 	existingUser.LastName = userDTO.Lastname
+	existingUser.Surname = userDTO.Surname
 
 	if userDTO.Password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userDTO.Password), bcrypt.DefaultCost)
@@ -243,6 +249,7 @@ func (s *UserService) GetUsers() ([]model.UserDTO, error) {
 			Username:  u.Username,
 			FirstName: u.FirstName,
 			Lastname:  u.LastName,
+			Surname:   u.Surname,
 			Roles:     roles,
 		}
 

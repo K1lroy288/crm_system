@@ -18,6 +18,8 @@ func main() {
 
 	r.LoadHTMLGlob("templates/*.html")
 
+	r.Static("/static", "./static")
+
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "Api Gateway is up!")
 	})
@@ -27,10 +29,30 @@ func main() {
 	})
 
 	r.GET("/table", func(ctx *gin.Context) {
-		_, err := utils.ValidateJWT(ctx)
+		claims, err := utils.ValidateJWT(ctx)
 		if err != nil {
 			log.Printf("Invalid token: %v", err)
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+			return
+		}
+
+		if utils.Contains(claims.Roles, "manager") {
+			ctx.HTML(http.StatusOK, "manager.html", nil)
+			return
+		}
+
+		if utils.Contains(claims.Roles, "dispatcher") {
+			ctx.HTML(http.StatusOK, "dispatcher.html", nil)
+			return
+		}
+
+		if utils.Contains(claims.Roles, "master") {
+			ctx.HTML(http.StatusOK, "master.html", nil)
+			return
+		}
+
+		if utils.Contains(claims.Roles, "admin") {
+			ctx.HTML(http.StatusOK, "admin.html", nil)
 			return
 		}
 
@@ -51,6 +73,22 @@ func main() {
 		}
 
 		ctx.HTML(http.StatusOK, "admin.html", nil)
+	})
+
+	r.GET("/manager", func(ctx *gin.Context) {
+		claims, err := utils.ValidateJWT(ctx)
+		if err != nil {
+			log.Printf("Invalid token: %v", err)
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err})
+			return
+		}
+
+		if !utils.Contains(claims.Roles, "manager") {
+			ctx.Status(http.StatusForbidden)
+			return
+		}
+
+		ctx.HTML(http.StatusOK, "manager.html", nil)
 	})
 
 	api := r.Group("/auth")

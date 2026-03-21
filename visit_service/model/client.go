@@ -10,4 +10,5 @@ type Client struct {
 	LastName  string `gorm:"size:50;not null"`
 	Surname   string `gorm:"size:50"`
 	Phone     string
+	IsVip     bool
 }
