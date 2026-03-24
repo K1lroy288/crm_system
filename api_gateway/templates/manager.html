@@ -30,7 +30,7 @@
         /* ТАБЛИЦА */
         .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 1300px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1600px; } /* Увеличил ширину для всех колонок */
         th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
         th { background: #f8f9fa; color: #555; font-weight: 600; cursor: pointer; user-select: none; transition: 0.2s; white-space: nowrap; position: relative; }
         th:hover { background: #eef1f5; color: #007AFF; }
@@ -126,9 +126,13 @@
                         <th onclick="setSort('is_vip')" data-field="is_vip">VIP <span class="sort-icon"></span></th>
                         <th onclick="setSort('last_name')" data-field="last_name">Клиент <span class="sort-icon"></span></th>
                         <th onclick="setSort('phone')" data-field="phone">Телефон <span class="sort-icon"></span></th>
-                        <th onclick="setSort('city')" data-field="city">Полный адрес <span class="sort-icon"></span></th>
-                        <th onclick="setSort('contract_number')" data-field="contract_number">№ Договора <span class="sort-icon"></span></th>
-                        <th onclick="setSort('contract_date')" data-field="contract_date">Дата дог. <span class="sort-icon"></span></th>
+                        <th onclick="setSort('city')" data-field="city">Адрес <span class="sort-icon"></span></th>
+                        <th onclick="setSort('contract_number')" data-field="contract_number">Договор <span class="sort-icon"></span></th>
+                        <th>Месяц</th>
+                        <th>Дата визита</th>
+                        <th>Мастер</th>
+                        <th>Сумма</th>
+                        <th>Оборудование</th>
                         <th onclick="setSort('status')" data-field="status">Статус <span class="sort-icon"></span></th>
                         <th>Действия</th>
                     </tr>
@@ -138,7 +142,7 @@
         </div>
     </div>
 
-    <!-- МОДАЛКИ -->
+    <!-- МОДАЛКА: Редактирование -->
     <div class="modal" id="edit-modal">
         <div class="modal-content">
             <h2 id="modal-title">Заявка</h2>
@@ -167,11 +171,27 @@
                     <div class="form-group"><label>Корпус</label><input type="number" id="building"></div>
                     <div class="form-group"><label>Квартира</label><input type="number" id="appartment"></div>
                 </div>
-                <h3>Договор</h3>
+                <h3>Договор и Назначение</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>№ Контракта</label><input type="text" id="contractnumber"></div>
                     <div class="form-group"><label>Дата контракта</label><input type="date" id="contractdate"></div>
                     <div class="form-group"><label>Месяц назначения</label><input type="month" id="assignedmonth"></div>
+                    <div class="form-group">
+                        <label>Мастер</label>
+                        <select id="master_id">
+                            <option value="">-- Не назначен --</option>
+                        </select>
+                    </div>
+                </div>
+                <h3>Детали визита</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Дата визита</label><input type="date" id="scheduled_date"></div>
+                    <div class="form-group"><label>Время визита</label><input type="text" id="scheduled_time" placeholder="Напр: 10:00-12:00"></div>
+                    <div class="form-group"><label>Сумма</label><input type="number" step="0.01" id="amount"></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Оборудование</label><input type="text" id="equipment"></div>
+                    <div class="form-group"><label>Комментарий диспетчера</label><input type="text" id="comment"></div>
                 </div>
                 <div style="display:flex; justify-content: flex-end; gap:12px; margin-top: 30px;">
                     <button type="button" class="btn btn-outline" onclick="closeModal('edit-modal')">Отмена</button>
@@ -181,6 +201,7 @@
         </div>
     </div>
 
+    <!-- МОДАЛКА: Настройка импорта Excel -->
     <div class="modal" id="mapping-modal">
         <div class="modal-content" style="max-width: 650px;">
             <h2>Настройка импорта Excel</h2>
@@ -239,7 +260,7 @@
         const REFUSAL_PATTERNS = ['отказ', 'неверный номер', 'не желает', 'отключено', 'недозвон', 'не в сети', 'новый собственник'];
         const NOISE_KEYWORDS = ['обход', 'проверка', 'техническое', 'инструктаж', 'котел', 'пусконаладка', 'ремонт', 'содержание работ'];
 
-        // --- ЛОГИКА ОТОБРАЖЕНИЯ (ВОССТАНОВЛЕНА) ---
+        // --- ЛОГИКА ОТОБРАЖЕНИЯ ---
 
         async function loadData() {
             document.getElementById('main-loader').style.display = 'inline-block';
@@ -251,6 +272,12 @@
                 ]);
                 allData = await vRes.json();
                 allMasters = await mRes.json();
+                
+                // Обновляем список мастеров в модалке
+                const mSelect = document.getElementById('master_id');
+                mSelect.innerHTML = '<option value="">-- Не назначен --</option>' + 
+                    allMasters.map(m => `<option value="${m.id}">${m.last_name} ${m.first_name}</option>`).join('');
+                
                 filterData();
             } catch (e) { console.error(e); }
             finally { document.getElementById('main-loader').style.display = 'none'; }
@@ -288,9 +315,8 @@
                 is_vip: v => v.client.is_vip,
                 last_name: v => v.client.last_name.toLowerCase(),
                 phone: v => v.client.phone,
-                city: v => (v.address.region + v.address.city + v.address.street).toLowerCase(),
+                city: v => (v.address.city + v.address.region).toLowerCase(),
                 contract_number: v => (v.contract_number || "").toLowerCase(),
-                contract_date: v => v.contract_date || '',
                 status: v => v.status
             };
             data.sort((a, b) => {
@@ -310,19 +336,66 @@
                 if (v.client.is_vip) row.classList.add('is-vip-row');
                 const st = statusMap[v.status] || { text: v.status, class: '' };
                 const a = v.address;
-                const addr = [a.city ? 'г. '+a.city : '', a.region ? 'р-н '+a.region : '', a.locality ? 'р-н '+a.locality : '', a.street ? 'ул. '+a.street : '', a.house_number ? 'д.'+a.house_number : ''].filter(Boolean).join(', ');
+                
+                const addrParts = [];
+                if (a.city) addrParts.push(`г. ${a.city}`);
+                if (a.region) addrParts.push(`р-н ${a.region}`);
+                if (a.locality) addrParts.push(`р-н ${a.locality}`);
+                if (a.street) addrParts.push(`ул. ${a.street}`);
+                if (a.house_number) {
+                    let h = `д. ${a.house_number}${a.letter||''}`;
+                    addrParts.push(h);
+                }
+                if (a.building) addrParts.push(`к. ${a.building}`);
+                if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
+
+                const cDate = v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '';
+                const sDate = v.scheduled_date ? new Date(v.scheduled_date).toLocaleDateString() : '-';
+                
+                // Находим имя мастера
+                const master = allMasters.find(m => m.id === v.master_id);
+                const masterName = master ? `${master.last_name} ${master.first_name[0]}.` : '-';
+
                 row.innerHTML = `
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
-                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name} ${v.client.surname || ''}</td>
+                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name}</td>
                     <td>${v.client.phone}</td>
-                    <td style="max-width:320px;">${addr}</td>
-                    <td>${v.contract_number || '-'}</td>
-                    <td>${v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '-'}</td>
+                    <td style="max-width:250px; font-size: 11px; color: #555;">${addrParts.join(', ') || '-'}</td>
+                    <td>
+                        <div style="font-weight: 600;">${v.contract_number || '-'}</div>
+                        <div style="font-size: 11px; color: #888;">${cDate}</div>
+                    </td>
+                    <td>${v.assigned_month || '-'}</td>
+                    <td>
+                        <div>${sDate}</div>
+                        <div style="font-size: 11px; color: #666;">${v.scheduled_time || ''}</div>
+                    </td>
+                    <td>${masterName}</td>
+                    <td>${v.amount ? v.amount.toLocaleString() + ' ₽' : '-'}</td>
+                    <td style="max-width:150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${v.equipment_description || ''}">${v.equipment_description || '-'}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
-                    <td><button class="btn btn-outline" style="padding:4px 8px" onclick='editVisit(${JSON.stringify(v)})'>✏️</button></td>
+                    <td>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="btn btn-outline" style="padding:4px 6px" title="Редактировать" onclick='editVisit(${JSON.stringify(v)})'>✏️</button>
+                            <button class="btn btn-red" style="padding:4px 6px; background: #fff5f5; color: #FF3B30; border: 1px solid #FF3B30;" title="Удалить" onclick="deleteVisit('${v.id}')">🗑️</button>
+                        </div>
+                    </td>
                 `;
                 tbody.appendChild(row);
             });
+        }
+
+        async function deleteVisit(id) {
+            if (!confirm('Вы уверены, что хотите удалить эту заявку?')) return;
+            try {
+                const token = localStorage.getItem('auth_token');
+                const res = await fetch(`${API_URL}/visit/visits/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) { loadData(); } 
+                else { alert('Ошибка при удалении заявки'); }
+            } catch (e) { console.error(e); alert('Ошибка соединения'); }
         }
 
         function updateSortVisuals() {
@@ -381,17 +454,56 @@
         }
 
         function parseSmartAddress(str) {
-            const res = { region: '', city: '', locality: '', street: '', house: 0, letter: '', build: '' };
+            const res = { region: '', city: '', locality: '', street: '', house: 0, letter: '', build: null, apt: null };
             if (!str) return res;
-            const cityMatch = str.match(/г\.\s?([А-Яа-я\-]+)/);
-            if (cityMatch) res.city = cityMatch[1];
-            const regionMatch = str.match(/район\s?([А-Яа-я\-]+)/);
-            if (regionMatch) res.region = regionMatch[1];
-            const streetMatch = str.match(/(?:улица|ул\.|пер\.|переулок|переулок)\s?([А-Яа-я\s\-]+?)(?:,|$)/);
+
+            let cleanStr = str
+                .replace(/(?:г\.|гор\.|город)\s+фед(?:ерального)?\s+значения/gi, "")
+                .replace(/внутригородское МО/gi, "")
+                .replace(/МО\s+[А-Яа-яЁё0-9\-]+/gi, "")
+                .replace(/муниципальный округ\s+[А-Яа-яЁё0-9\s№\-]+/gi, "")
+                .replace(/Санкт-Петербурга/gi, "")
+                .replace(/СПб/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            const regionMatch = cleanStr.match(/(?:р-н|район)\s+([А-ЯЁа-я\-]+)/i);
+            if (regionMatch) res.region = regionMatch[1].trim();
+
+            const cityPart = cleanStr.match(/(?:^|,|\s)(?:г\.|город)\s*([А-ЯЁ][а-яё0-9\-]+)/);
+            const territoryPart = cleanStr.match(/(?:тер\.|территория|пос\.|поселок|п\.|с\.|село|СНТ)\s*([А-ЯЁа-я0-9\s\-]+?)(?:,|$)/i);
+
+            let foundCity = cityPart ? cityPart[1].trim() : "";
+            let foundTerritory = territoryPart ? territoryPart[1].trim() : "";
+
+            if (foundCity && foundTerritory && foundCity !== foundTerritory) {
+                res.city = `${foundCity}, ${foundTerritory}`;
+            } else {
+                res.city = foundCity || foundTerritory || "";
+            }
+
+            const streetMatch = cleanStr.match(/(?:улица|ул\.|переулок|пер\.|проспект|пр\.|бульвар|б-р|шоссе)\s+([А-ЯЁа-я0-9\s\-]+?)(?:,|$|\s+(?:д\.|дом|участок))/i);
             if (streetMatch) res.street = streetMatch[1].trim();
-            const houseMatch = str.match(/(?:дом|д\.)\s?(\d+)/);
+
+            const houseMatch = cleanStr.match(/(?:дом|д\.|участок)\s*(\d+)/i);
             if (houseMatch) res.house = parseInt(houseMatch[1]);
-            if (!res.city) res.city = str.split(',')[0].trim();
+
+            const buildMatch = cleanStr.match(/(?:строение|стр\.)\s*(\d+)/i);
+            const corpMatch = cleanStr.match(/(?:корпус|к\.)\s*(\d+)/i);
+            
+            if (corpMatch) { res.build = parseInt(corpMatch[1]); } 
+            else if (buildMatch) { res.build = parseInt(buildMatch[1]); }
+
+            const letterMatch = cleanStr.match(/(?:литер|лит\.)\s*([А-ЯЁа-яA-Z])/i);
+            if (letterMatch) res.letter = letterMatch[1].trim();
+
+            const aptMatch = cleanStr.match(/(?:кв\.|квартира)\s*(\d+)/i);
+            if (aptMatch) res.apt = parseInt(aptMatch[1]);
+
+            if (!res.city) {
+                let firstPart = cleanStr.split(',')[0].replace(/г\.|город|тер\.|территория/gi, "").trim();
+                if (firstPart.length > 2) res.city = firstPart;
+            }
             return res;
         }
 
@@ -453,6 +565,8 @@
             showMappingUI();
         }
 
+        document.getElementById('excel-start-row').oninput = showMappingUI;
+
         function showMappingUI() {
             const container = document.getElementById('mapping-container');
             const startRowInput = parseInt(document.getElementById('excel-start-row').value) || 2;
@@ -486,6 +600,7 @@
             btnSubmit.disabled = true; btnSubmit.innerText = "Загрузка...";
             document.getElementById('main-loader').style.display = 'inline-block';
 
+            let success = 0;
             let lastFio = "", lastPhone = "", lastAddr = "", lastContract = "";
 
             for (let i = startRow; i < rawExcelRows.length; i++) {
@@ -515,7 +630,7 @@
                 
                 const payload = {
                     client: { last_name: fioData.last, first_name: fioData.first, surname: fioData.sur, phone: extractPhones(pRaw), is_vip: false },
-                    address: { region: addrData.region, city: addrData.city, street: addrData.street, house_number: addrData.house, building: parseInt(addrData.build) || null },
+                    address: { region: addrData.region, city: addrData.city, street: addrData.street, house_number: addrData.house, letter: addrData.letter, building: addrData.build, appartment_number: addrData.apt },
                     contract_number: contData.num,
                     contract_date: contData.date,
                     assigned_month: String(row[mapping.assigned_month] || ''),
@@ -528,12 +643,14 @@
                     status: masterId ? "scheduled" : "created"
                 };
 
-                await fetch(`${API_URL}/visit/visits`, {
+                const res = await fetch(`${API_URL}/visit/visits`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
                     body: JSON.stringify(payload)
                 });
+                if (res.ok) success++;
             }
+            alert(`Загружено: ${success}`);
             btnSubmit.disabled = false; btnSubmit.innerText = "Начать загрузку";
             closeModal('mapping-modal');
             loadData();
@@ -545,17 +662,24 @@
             currentEditId = null; currentVisitData = null;
             document.getElementById('modal-title').innerText = "Новая заявка";
             document.getElementById('visit-form').reset();
+            
+            // Сбрасываем мастер-селект и другие кастомные поля
+            document.getElementById('master_id').value = "";
             document.getElementById('edit-modal').style.display = 'flex';
         }
 
         function editVisit(v) {
             currentEditId = v.id; currentVisitData = v;
             document.getElementById('modal-title').innerText = "Редактировать заявку";
+            
+            // Клиент
             document.getElementById('lastname').value = v.client.last_name || '';
             document.getElementById('firstname').value = v.client.first_name || '';
             document.getElementById('surname').value = v.client.surname || '';
             document.getElementById('phone').value = v.client.phone || '';
             document.getElementById('is_vip').checked = v.client.is_vip || false;
+            
+            // Адрес
             document.getElementById('region').value = v.address.region || '';
             document.getElementById('city').value = v.address.city || '';
             document.getElementById('locality').value = v.address.locality || '';
@@ -564,20 +688,39 @@
             document.getElementById('letter').value = v.address.letter || '';
             document.getElementById('building').value = v.address.building || '';
             document.getElementById('appartment').value = v.address.appartment_number || '';
+            
+            // Договор
             document.getElementById('contractnumber').value = v.contract_number || '';
             if(v.contract_date) document.getElementById('contractdate').value = v.contract_date.split('T')[0];
             if(v.assigned_month) document.getElementById('assignedmonth').value = v.assigned_month;
+            
+            // Мастер
+            document.getElementById('master_id').value = v.master_id || "";
+            
+            // Детали
+            if(v.scheduled_date) document.getElementById('scheduled_date').value = v.scheduled_date.split('T')[0];
+            else document.getElementById('scheduled_date').value = "";
+            
+            document.getElementById('scheduled_time').value = v.scheduled_time || '';
+            document.getElementById('amount').value = v.amount || 0;
+            document.getElementById('equipment').value = v.equipment_description || '';
+            document.getElementById('comment').value = v.dispatcher_comment || '';
+            
             document.getElementById('edit-modal').style.display = 'flex';
         }
 
         async function saveVisit(event) {
             event.preventDefault();
             let p = currentEditId ? { ...currentVisitData } : { client: {}, address: {} };
+            
+            // Клиент
             p.client.last_name = document.getElementById('lastname').value;
             p.client.first_name = document.getElementById('firstname').value;
             p.client.surname = document.getElementById('surname').value;
             p.client.phone = document.getElementById('phone').value;
             p.client.is_vip = document.getElementById('is_vip').checked;
+            
+            // Адрес
             p.address.region = document.getElementById('region').value;
             p.address.city = document.getElementById('city').value;
             p.address.locality = document.getElementById('locality').value;
@@ -586,10 +729,28 @@
             p.address.letter = document.getElementById('letter').value;
             p.address.building = parseInt(document.getElementById('building').value) || null;
             p.address.appartment_number = parseInt(document.getElementById('appartment').value) || null;
+            
+            // Договор
             p.contract_number = document.getElementById('contractnumber').value;
             p.contract_date = document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null;
             p.assigned_month = document.getElementById('assignedmonth').value;
-            if (!currentEditId) p.status = "created";
+            
+            // Детали и Мастер (ВАЖНО: parseInt для master_id)
+            const mIdVal = document.getElementById('master_id').value;
+            p.master_id = mIdVal ? parseInt(mIdVal) : null;
+            
+            p.scheduled_date = document.getElementById('scheduled_date').value ? document.getElementById('scheduled_date').value + "T00:00:00Z" : null;
+            p.scheduled_time = document.getElementById('scheduled_time').value;
+            p.amount = parseFloat(document.getElementById('amount').value) || 0;
+            p.equipment_description = document.getElementById('equipment').value;
+            p.dispatcher_comment = document.getElementById('comment').value;
+
+            // Логика статуса: если назначен мастер, статус меняется на scheduled
+            if (!currentEditId) {
+                p.status = p.master_id ? "scheduled" : "created";
+            } else if (p.status === 'created' && p.master_id) {
+                p.status = "scheduled";
+            }
             
             const res = await fetch(currentEditId ? `${API_URL}/visit/visits/${currentEditId}` : `${API_URL}/visit/visits`, {
                 method: currentEditId ? 'PUT' : 'POST',
