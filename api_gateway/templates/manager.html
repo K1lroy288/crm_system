@@ -134,6 +134,7 @@
                         <th>Диспетчер</th>
                         <th>Сумма</th>
                         <th>Оборудование</th>
+                        <th>Отчет мастера</th>
                         <th onclick="setSort('status')" data-field="status">Статус <span class="sort-icon"></span></th>
                         <th>Действия</th>
                     </tr>
@@ -393,6 +394,7 @@
                     <td>${dispName}</td>
                     <td>${v.amount ? v.amount.toLocaleString() + ' ₽' : '-'}</td>
                     <td style="max-width:150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${v.equipment_description || ''}">${v.equipment_description || '-'}</td>
+                    <td style="max-width:200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${v.master_report || ''}">${v.master_report || '-'}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
                     <td>
                         <div style="display: flex; gap: 4px;">

@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f2f2f7; padding: 15px; padding-bottom: 80px; }
-        
+
         .header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
         .header-top { display: flex; justify-content: space-between; align-items: center; }
         h1 { font-size: 18px; color: #1c1c1e; }
@@ -37,7 +37,6 @@
         .btn-logout { background: #FF3B30; color: white; padding: 8px 12px; font-size: 12px; }
         .btn-profile { background: white; color: #1c1c1e; border: 1px solid #d1d1d6; padding: 8px 12px; font-size: 12px; }
 
-        /* Модалка выбора телефона */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: flex-end; z-index: 1000; }
         .modal-content { background: white; padding: 25px; border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -45,217 +44,247 @@
         .phone-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .btn-phone { background: #f2f2f7; color: #007AFF; padding: 15px; border-radius: 12px; text-decoration: none; text-align: center; font-weight: 600; font-size: 18px; }
 
+        /* Стили для отчета */
+        .report-textarea { width: 100%; border: 1.5px solid #e1e1e7; border-radius: 12px; padding: 12px; font-size: 16px; margin: 15px 0; outline: none; resize: none; background: #fbfbfd; }
+        .report-textarea:focus { border-color: #007AFF; background: #fff; }
+
         .loader { display: none; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="header-top">
-            <h1>🛠 Мои заявки</h1>
-            <div style="display:flex; gap:8px;">
-                <button class="btn btn-profile" onclick="goToProfile()">👤</button>
-                <button class="btn btn-logout" onclick="logout()">Выход</button>
-            </div>
-        </div>
-        <div class="date-selector">
-            <label>Дата:</label>
-            <input type="date" id="task-date" onchange="loadTasks()">
+<div class="header">
+    <div class="header-top">
+        <h1>🛠 Мои заявки</h1>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-profile" onclick="goToProfile()">👤</button>
+            <button class="btn btn-logout" onclick="logout()">Выход</button>
         </div>
     </div>
+    <div class="date-selector">
+        <label>Дата:</label>
+        <input type="date" id="task-date" onchange="loadTasks()">
+    </div>
+</div>
 
-    <div id="main-loader" class="loader"></div>
-    <div id="task-list"></div>
+<div id="main-loader" class="loader"></div>
+<div id="task-list"></div>
 
-    <!-- Модалка выбора телефона -->
-    <div class="modal" id="phone-modal">
-        <div class="modal-content">
-            <h2 style="font-size: 18px; text-align: center;">Выберите номер для звонка</h2>
-            <div class="phone-list" id="phone-options"></div>
-            <button class="btn btn-outline" style="width: 100%; margin-top: 15px; border: none; color: #FF3B30;" onclick="closePhoneModal()">Отмена</button>
+<!-- Модалка выбора телефона -->
+<div class="modal" id="phone-modal">
+    <div class="modal-content">
+        <h2 style="font-size: 18px; text-align: center;">Выберите номер для звонка</h2>
+        <div class="phone-list" id="phone-options"></div>
+        <button class="btn btn-outline" style="width: 100%; margin-top: 15px; border: none; color: #FF3B30;" onclick="closePhoneModal()">Отмена</button>
+    </div>
+</div>
+
+<!-- Модалка отчета мастера -->
+<div class="modal" id="report-modal">
+    <div class="modal-content">
+        <h2 style="font-size: 18px; text-align: center;">Отчет о проделанной работе</h2>
+        <textarea id="report-text" class="report-textarea" rows="5" placeholder="Опишите результат визита, выполненные работы или причину невыполнения..."></textarea>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-outline" style="flex: 1; border: 1.5px solid #d1d1d6; color: #444;" onclick="closeReportModal()">Отмена</button>
+            <button class="btn btn-done" style="flex: 1;" id="report-submit-btn" onclick="submitReport()">Завершить</button>
         </div>
     </div>
+</div>
 
-    <script>
-        const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+<script>
+    const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
+    let currentVisitForReport = null; // Глобальная переменная для хранения текущей заявки
+    
+    document.getElementById('task-date').valueAsDate = new Date();
+
+    function getMyId() {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return logout();
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.user_id || payload.id;
+    }
+
+    async function loadTasks() {
+        const selectedDate = document.getElementById('task-date').value;
+        const loader = document.getElementById('main-loader');
+        const container = document.getElementById('task-list');
         
-        document.getElementById('task-date').valueAsDate = new Date();
-
-        function getMyId() {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return logout();
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.user_id || payload.id;
-        }
-
-        async function loadTasks() {
-            const selectedDate = document.getElementById('task-date').value;
-            const loader = document.getElementById('main-loader');
-            const container = document.getElementById('task-list');
-            
-            loader.style.display = 'block';
-            container.innerHTML = '';
-            
-            const myId = getMyId();
-            
-            try {
-                const res = await fetch(`${API_URL}/visit/visits?date=${selectedDate}&master_id=${myId}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-                });
-                if (!res.ok) throw new Error("Server error");
-                const myVisits = await res.json();
-                
-                if (!myVisits || myVisits.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На этот день заявок нет 🙌</p>';
-                } else {
-                    renderTasks(myVisits);
-                }
-            } catch (e) { 
-                container.innerHTML = '<p style="text-align:center; color:red; margin-top:50px;">Ошибка загрузки данных</p>';
-            } finally { 
-                loader.style.display = 'none'; 
-            }
-        }
-
-        function formatFullAddress(a) {
-            const addrParts = [];
-            if (a.city) addrParts.push(`г. ${a.city}`);
-            if (a.region) addrParts.push(`р-н ${a.region}`);
-            if (a.locality) addrParts.push(`р-н ${a.locality}`);
-            if (a.street) addrParts.push(`ул. ${a.street}`);
-            if (a.house_number) {
-                let h = `д. ${a.house_number}`;
-                if (a.letter) h += a.letter;
-                addrParts.push(h);
-            }
-            if (a.building) addrParts.push(`к. ${a.building}`);
-            if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
-
-            return addrParts.join(', ') || 'Адрес не указан';
-        }
-
-        function renderTasks(tasks) {
-            const container = document.getElementById('task-list');
-            tasks.sort((a,b) => (a.status === 'in_work' ? -1 : 1));
-
-            tasks.forEach(t => {
-                const card = document.createElement('div');
-                card.className = `task-card ${t.status === 'in_work' ? 'active' : ''} ${t.status === 'done' ? 'completed' : ''}`;
-                
-                const fullAddr = formatFullAddress(t.address);
-                const isDone = t.status === 'done';
-                
-                // Формируем полное имя с отчеством
-                const fullName = `${t.client.last_name} ${t.client.first_name} ${t.client.surname || ''}`.trim();
-                
-                card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <span class="time-badge">🕒 ${t.scheduled_time || 'Время не указано'}</span>
-                        ${t.client.is_vip ? '<span class="vip-tag">⭐️ VIP</span>' : ''}
-                    </div>
-                    <div class="client-name">${fullName}</div>
-                    <div class="address">📍 ${fullAddr}</div>
-                    
-                    <div style="background:#f1f1f7; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px;">
-                        <div class="info-row"><strong>Прибор:</strong> ${t.equipment_description || '—'}</div>
-                        <div class="info-row"><strong>Заметка:</strong> ${t.dispatcher_comment || '—'}</div>
-                    </div>
-
-                    ${!isDone ? `
-                        <div class="actions">
-                            <button class="btn btn-call" onclick="initiateCall('${t.client.phone}')">📞 Позвонить</button>
-                            <button class="btn btn-outline" onclick="openMap('${fullAddr.replace(/'/g, "\\'")}')">🗺 Карта</button>
-                            
-                            ${t.status === 'in_work' 
-                                ? `<button class="btn btn-done" onclick='handleCompleteWork(${JSON.stringify(t)})'>✅ ЗАВЕРШИТЬ</button>`
-                                : `<button class="btn btn-start" onclick='handleStartWork(${JSON.stringify(t)})'>🚀 Я НА МЕСТЕ</button>`
-                            }
-                        </div>
-                    ` : '<div style="text-align:center; color:#34C759; font-weight:bold; font-size:14px;">✓ Выполнено</div>'}
-                `;
-                container.appendChild(card);
+        loader.style.display = 'block';
+        container.innerHTML = '';
+        const myId = getMyId();
+        
+        try {
+            const res = await fetch(`${API_URL}/visit/visits?date=${selectedDate}&master_id=${myId}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
             });
-        }
-
-        // --- ЛОГИКА ЗВОНКА ---
-        function initiateCall(phoneStr) {
-            if (!phoneStr) return alert("Номер телефона не указан");
+            if (!res.ok) throw new Error("Server error");
+            const myVisits = await res.json();
             
-            const phones = phoneStr.split(/[;|,]/).map(p => p.trim()).filter(p => p.length > 0);
-            
-            if (phones.length === 1) {
-                window.location.href = `tel:${phones[0]}`;
+            if (!myVisits || myVisits.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">На этот день заявок нет 🙌</p>';
             } else {
-                const container = document.getElementById('phone-options');
-                container.innerHTML = '';
-                phones.forEach(phone => {
-                    const btn = document.createElement('a');
-                    btn.className = 'btn-phone';
-                    btn.href = `tel:${phone}`;
-                    btn.innerText = phone;
-                    btn.onclick = closePhoneModal;
-                    container.appendChild(btn);
-                });
-                document.getElementById('phone-modal').style.display = 'flex';
+                renderTasks(myVisits);
             }
+        } catch (e) { 
+            container.innerHTML = '<p style="text-align:center; color:red; margin-top:50px;">Ошибка загрузки данных</p>';
+        } finally { 
+            loader.style.display = 'none'; 
+        }
+    }
+
+    function formatFullAddress(a) {
+        const addrParts = [];
+        if (a.city) addrParts.push(`г. ${a.city}`);
+        if (a.region) addrParts.push(`р-н ${a.region}`);
+        if (a.locality) addrParts.push(`р-н ${a.locality}`);
+        if (a.street) addrParts.push(`ул. ${a.street}`);
+        if (a.house_number) {
+            let h = `д. ${a.house_number}`;
+            if (a.letter) h += a.letter;
+            addrParts.push(h);
+        }
+        if (a.building) addrParts.push(`к. ${a.building}`);
+        if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
+        return addrParts.join(', ') || 'Адрес не указан';
+    }
+
+    function renderTasks(tasks) {
+        const container = document.getElementById('task-list');
+        tasks.sort((a,b) => (a.status === 'in_work' ? -1 : 1));
+
+        tasks.forEach(t => {
+            const card = document.createElement('div');
+            card.className = `task-card ${t.status === 'in_work' ? 'active' : ''} ${t.status === 'done' ? 'completed' : ''}`;
+            
+            const fullAddr = formatFullAddress(t.address);
+            const isDone = t.status === 'done';
+            const fullName = `${t.client.last_name} ${t.client.first_name} ${t.client.surname || ''}`.trim();
+            
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <span class="time-badge">🕒 ${t.scheduled_time || 'Время не указано'}</span>
+                    ${t.client.is_vip ? '<span class="vip-tag">⭐️ VIP</span>' : ''}
+                </div>
+                <div class="client-name">${fullName}</div>
+                <div class="address">📍 ${fullAddr}</div>
+                
+                <div style="background:#f1f1f7; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px;">
+                    <div class="info-row"><strong>Прибор:</strong> ${t.equipment_description || '—'}</div>
+                    <div class="info-row"><strong>Заметка:</strong> ${t.dispatcher_comment || '—'}</div>
+                    ${t.master_report ? `<div class="info-row" style="margin-top:5px; color:#2E7D32;"><strong>Мой отчет:</strong> ${t.master_report}</div>` : ''}
+                </div>
+
+                ${!isDone ? `
+                    <div class="actions">
+                        <button class="btn btn-call" onclick="initiateCall('${t.client.phone}')">📞 Позвонить</button>
+                        <button class="btn btn-outline" onclick="openMap('${fullAddr.replace(/'/g, "\\'")}')">🗺 Карта</button>
+                        
+                        ${t.status === 'in_work' 
+                            ? `<button class="btn btn-done" onclick='handleCompleteWork(${JSON.stringify(t)})'>✅ ЗАВЕРШИТЬ</button>`
+                            : `<button class="btn btn-start" onclick='handleStartWork(${JSON.stringify(t)})'>🚀 Я НА МЕСТЕ</button>`
+                        }
+                    </div>
+                ` : '<div style="text-align:center; color:#34C759; font-weight:bold; font-size:14px;">✓ Выполнено</div>'}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // --- ЛОГИКА МОДАЛОК ---
+    function closePhoneModal() { document.getElementById('phone-modal').style.display = 'none'; }
+    
+    function handleCompleteWork(visit) {
+        currentVisitForReport = visit;
+        document.getElementById('report-text').value = '';
+        document.getElementById('report-modal').style.display = 'flex';
+    }
+
+    function closeReportModal() {
+        document.getElementById('report-modal').style.display = 'none';
+        currentVisitForReport = null;
+    }
+
+    async function submitReport() {
+        const text = document.getElementById('report-text').value.trim();
+        if (!text) return alert("Пожалуйста, напишите краткий отчет о работе");
+        
+        if (!confirm("Завершить заявку и отправить отчет?")) return;
+        
+        await updateVisitStatus(currentVisitForReport, "done", text);
+        closeReportModal();
+    }
+
+    function initiateCall(phoneStr) {
+        if (!phoneStr) return alert("Номер телефона не указан");
+        const phones = phoneStr.split(/[;|,]/).map(p => p.trim()).filter(p => p.length > 0);
+        if (phones.length === 1) {
+            window.location.href = `tel:${phones[0]}`;
+        } else {
+            const container = document.getElementById('phone-options');
+            container.innerHTML = '';
+            phones.forEach(phone => {
+                const btn = document.createElement('a');
+                btn.className = 'btn-phone';
+                btn.href = `tel:${phone}`;
+                btn.innerText = phone;
+                btn.onclick = closePhoneModal;
+                container.appendChild(btn);
+            });
+            document.getElementById('phone-modal').style.display = 'flex';
+        }
+    }
+
+    async function handleStartWork(visit) {
+        if (!confirm("Подтвердите прибытие на объект?")) return;
+        updateVisitStatus(visit, "in_work");
+    }
+
+    async function updateVisitStatus(visit, newStatus, reportText = null) {
+        const token = localStorage.getItem('auth_token');
+        const payload = { 
+            ...visit, 
+            status: newStatus,
+            actual_start_at: newStatus === 'in_work' ? new Date().toISOString() : visit.actual_start_at,
+            actual_end_at: newStatus === 'done' ? new Date().toISOString() : visit.actual_end_at
+        };
+
+        if (reportText) {
+            payload.master_report = reportText;
         }
 
-        function closePhoneModal() {
-            document.getElementById('phone-modal').style.display = 'none';
-        }
+        try {
+            const res = await fetch(`${API_URL}/visit/visits/${visit.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) loadTasks();
+            else alert("Ошибка при обновлении статуса");
+        } catch (e) { alert('Ошибка сети'); }
+    }
 
-        async function handleStartWork(visit) {
-            if (!confirm("Подтвердите прибытие на объект?")) return;
-            updateVisitStatus(visit, "in_work");
-        }
+    function openMap(fullAddr) {
+        const cleanAddr = fullAddr.replace(/(обл\.|г\.|р-н|ул\.|д\.|к\.|кв\.)/g, '').trim();
+        window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(cleanAddr)}`, '_blank');
+    }
 
-        async function handleCompleteWork(visit) {
-            if (!confirm("Вы уверены, что работа завершена?")) return;
-            updateVisitStatus(visit, "done");
-        }
+    function logout() { localStorage.clear(); window.location.href = '/'; }
 
-        async function updateVisitStatus(visit, newStatus) {
-            const token = localStorage.getItem('auth_token');
-            const payload = { 
-                ...visit, 
-                status: newStatus,
-                actual_start_at: newStatus === 'in_work' ? new Date().toISOString() : visit.actual_start_at,
-                actual_end_at: newStatus === 'done' ? new Date().toISOString() : visit.actual_end_at
-            };
+    function goToProfile() {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return logout();
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        localStorage.setItem('profile_user_id', payload.user_id || payload.id);
+        window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
+    }
 
-            try {
-                const res = await fetch(`${API_URL}/visit/visits/${visit.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) loadTasks();
-                else alert("Ошибка при обновлении статуса");
-            } catch (e) { alert('Ошибка сети'); }
-        }
+    loadTasks();
 
-        function openMap(fullAddr) {
-            const cleanAddr = fullAddr.replace(/(обл\.|г\.|р-н|ул\.|д\.|к\.|кв\.)/g, '').trim();
-            window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(cleanAddr)}`, '_blank');
-        }
-
-        function logout() { localStorage.clear(); window.location.href = '/'; }
-
-        function goToProfile() {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return logout();
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            localStorage.setItem('profile_user_id', payload.user_id || payload.id);
-            window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
-        }
-
-        loadTasks();
-
-        window.onclick = function(event) {
-            const modal = document.getElementById('phone-modal');
-            if (event.target === modal) closePhoneModal();
-        }
-    </script>
+    window.onclick = function(event) {
+        if (event.target === document.getElementById('phone-modal')) closePhoneModal();
+        if (event.target === document.getElementById('report-modal')) closeReportModal();
+    }
+</script>
 </body>
 </html>
