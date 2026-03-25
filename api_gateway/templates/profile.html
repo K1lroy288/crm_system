@@ -15,7 +15,7 @@
             align-items: center; 
             margin-bottom: 30px; 
             flex-wrap: wrap; 
-            gap: 10px; 
+            gap: 15px; 
         }
         h1 { color: #333; }
         .btn { 
@@ -28,6 +28,7 @@
             font-size: 14px; 
             text-decoration: none;
             display: inline-block;
+            text-align: center;
         }
         .btn:hover { background: #0056CC; }
         .btn-outline {
@@ -68,6 +69,7 @@
             color: #666;
             font-size: 16px;
             margin-bottom: 10px;
+            word-break: break-all;
         }
         
         .role-badge {
@@ -115,6 +117,7 @@
             font-size: 16px;
             color: #333;
             font-weight: 500;
+            word-break: break-word;
         }
         
         /* Формы редактирования */
@@ -166,6 +169,7 @@
             border-radius: 8px;
             margin: 15px 0;
             display: none;
+            text-align: center;
         }
         
         .message.success {
@@ -196,6 +200,54 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Кнопки действий контейнер */
+        .profile-actions-wrapper {
+            display: flex; 
+            gap: 10px; 
+            justify-content: flex-end; 
+            margin: 20px 0;
+        }
+
+        /* --- АДАПТИВНОСТЬ ДЛЯ ТЕЛЕФОНОВ --- */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .header h1 { font-size: 20px; }
+            .header div { width: 100%; justify-content: center; }
+            .header .btn { flex: 1; }
+
+            .profile-card {
+                padding: 20px 15px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr; /* В одну колонку */
+                gap: 10px;
+            }
+
+            .profile-actions-wrapper {
+                flex-direction: column;
+            }
+            .profile-actions-wrapper .btn {
+                width: 100%;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+            .form-actions .btn {
+                width: 100%;
+            }
+
+            .edit-form {
+                padding: 15px 10px;
+            }
         }
     </style>
 </head>
@@ -240,7 +292,7 @@
         </div>
 
         <!-- Кнопки действий -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin: 20px 0;">
+        <div class="profile-actions-wrapper">
             <button class="btn" onclick="showEditForm()">✏️ Редактировать профиль</button>
             <button class="btn btn-outline" onclick="showPasswordForm()">🔐 Сменить пароль</button>
         </div>

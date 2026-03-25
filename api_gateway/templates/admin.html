@@ -231,6 +231,7 @@
         <h1>👥 Управление пользователями</h1>
         <div style="display: flex; gap: 10px;">
             <button class="btn btn-outline" onclick="goBack()">← Назад</button>
+            <button class="btn btn-outline" onclick="goToProfile()">👤 Профиль</button>
             <button class="btn btn-green" onclick="openUserModal('new')">+ Новый пользователь</button>
             <button class="btn btn-red" onclick="logout()">Выйти</button>
         </div>
@@ -327,6 +328,24 @@
         // Проверка авторизации и прав админа
         if (!localStorage.getItem('auth_token')) {
             window.location.href = '/';
+        }
+
+        // Функция перехода в профиль
+        function goToProfile() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            try {
+                // Извлекаем ID пользователя из JWT токена
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                localStorage.setItem('profile_user_id', payload.user_id || payload.id);
+                window.location.href = `/user/profile?token=${encodeURIComponent(token)}`;
+            } catch (e) {
+                console.error('Ошибка декодирования токена:', e);
+                window.location.href = '/';
+            }
         }
 
         // Функция возврата
