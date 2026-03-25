@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель Диспетчера</title>
     <style>
-        /* Стили остаются без изменений */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         body { background: #f5f5f7; padding: 20px; }
         
@@ -143,7 +142,11 @@
                 </div>
                 <div class="form-grid">
                     <div class="form-group"><label>Дата визита*</label><input type="date" id="scheduled-date" required></div>
-                    <div class="form-group"><label>Время визита</label><input type="time" id="scheduled-time"></div>
+                    <div class="form-group">
+                        <label>Время визита</label>
+                        <!-- Изменено с type="time" на type="text" -->
+                        <input type="text" id="scheduled-time" placeholder="Напр: 10:00-12:00">
+                    </div>
                 </div>
                 <div class="form-group" style="margin-top: 15px;">
                     <label>Оборудование / Специфика</label>
@@ -181,10 +184,18 @@
             document.getElementById('main-loader').style.display = 'inline-block';
             try {
                 const token = localStorage.getItem('auth_token');
+                if (!token) return logout();
+
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const dispatcherId = payload.user_id || payload.id;
+
                 const [vRes, mRes] = await Promise.all([
-                    fetch(`${API_URL}/visit/visits`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_URL}/visit/visits?dispatcher_id=${dispatcherId}`, { 
+                        headers: { 'Authorization': `Bearer ${token}` } 
+                    }),
                     fetch(`${API_URL}/user/masters`, { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
+                
                 allVisits = await vRes.json();
                 allMasters = await mRes.json();
                 populateMasterDropdowns();
@@ -194,7 +205,7 @@
         }
 
         function populateMasterDropdowns() {
-            const options = allMasters.map(m => `<option value="${m.id}">${m.last_name} ${m.first_name[0]}. (@${m.username})</option>`).join('');
+            const options = allMasters.map(m => `<option value="${m.id}">${m.last_name || ''} ${m.first_name ? m.first_name[0] + '.' : ''} (@${m.username || ''})</option>`).join('');
             document.getElementById('f-master').innerHTML = '<option value="all">Все мастера</option>' + options;
             document.getElementById('master-select').innerHTML = '<option value="">-- Выберите мастера --</option>' + options;
         }
@@ -217,10 +228,10 @@
                 const sDate = v.scheduled_date ? v.scheduled_date.split('T')[0] : '';
                 const vMonth = (v.assigned_month || '').toLowerCase();
                 
-                const matchName = `${v.client.last_name} ${v.client.first_name}`.toLowerCase().includes(f.name);
-                const matchPhone = v.client.phone.toLowerCase().includes(f.phone);
-                const matchCity = v.address.city.toLowerCase().includes(f.city);
-                const matchStreet = v.address.street.toLowerCase().includes(f.street);
+                const matchName = `${v.client.last_name || ''} ${v.client.first_name || ''}`.toLowerCase().includes(f.name);
+                const matchPhone = (v.client.phone || '').toLowerCase().includes(f.phone);
+                const matchCity = (v.address.city || '').toLowerCase().includes(f.city);
+                const matchStreet = (v.address.street || '').toLowerCase().includes(f.street);
                 const matchMonth = vMonth.includes(f.month);
                 const matchMaster = (f.master === 'all' || v.master_id == f.master);
                 const matchStatus = (f.status === 'all' || v.status === f.status);
@@ -251,12 +262,12 @@
         function applySort(data) {
             const accessors = {
                 is_vip: v => v.client.is_vip,
-                last_name: v => v.client.last_name.toLowerCase(),
-                phone: v => v.client.phone,
+                last_name: v => (v.client.last_name || '').toLowerCase(),
+                phone: v => v.client.phone || '',
                 assigned_month: v => v.assigned_month || '',
                 city: v => {
                     const a = v.address;
-                    return (a.city + a.region + a.locality + a.street + a.house_number).toLowerCase();
+                    return ((a.city || '') + (a.region || '') + (a.locality || '') + (a.street || '') + (a.house_number || '')).toLowerCase();
                 },
                 status: v => v.status,
                 master_id: v => v.master_id || 0,
@@ -281,15 +292,13 @@
                 const st = statusMap[v.status] || { text: v.status, class: '' };
                 const a = v.address;
                 
-                // 1. ИСПРАВЛЕННЫЙ ПОРЯДОК АДРЕСА: Город -> Район
                 const addrParts = [];
                 if (a.city) addrParts.push(`г. ${a.city}`);
                 if (a.region) addrParts.push(`р-н ${a.region}`);
                 if (a.locality) addrParts.push(`р-н ${a.locality}`);
                 if (a.street) addrParts.push(`ул. ${a.street}`);
                 if (a.house_number) {
-                    let h = `д. ${a.house_number}`;
-                    if (a.letter) h += a.letter;
+                    let h = `д. ${a.house_number}${a.letter || ''}`;
                     addrParts.push(h);
                 }
                 if (a.building) addrParts.push(`к. ${a.building}`);
@@ -297,23 +306,13 @@
                 const fullAddr = addrParts.join(', ') || '-';
 
                 const master = allMasters.find(m => m.id === v.master_id);
-                
-                // Исправление отображения мастера (убираем undefined)
-                let masterDisplay = '—';
-                if (master) {
-                    masterDisplay = master.last_name;
-                    if (master.first_name && master.first_name.length > 0) {
-                        masterDisplay += ` ${master.first_name[0]}.`;
-                    }
-                }
-
-                // 2. ИСПРАВЛЕННОЕ ФИО КЛИЕНТА (с Отчеством/Surname)
-                const fio = `${v.client.last_name || ''} ${v.client.first_name || ''} ${v.client.surname || ''}`.trim();
+                const masterDisplay = master ? `${master.last_name || ''} ${master.first_name ? master.first_name[0] + '.' : ''}`.trim() || '—' : '—';
+                const fio = `${v.client.last_name || ''} ${v.client.first_name || ''} ${v.client.surname || ''}`.trim() || '-';
 
                 row.innerHTML = `
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
                     <td><strong>${fio}</strong></td>
-                    <td>${v.client.phone}</td>
+                    <td>${v.client.phone || ''}</td>
                     <td>${v.assigned_month || '—'}</td>
                     <td style="max-width:300px">${fullAddr}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
@@ -327,7 +326,8 @@
 
         function openAssignModal(v) {
             currentVisitData = v;
-            document.getElementById('client-info-preview').innerHTML = `<p><strong>Клиент:</strong> ${v.client.last_name} ${v.client.first_name} (${v.client.phone})</p><p><strong>Месяц:</strong> ${v.assigned_month || 'не указан'}</p>`;
+            const fio = `${v.client.last_name || ''} ${v.client.first_name || ''}`.trim();
+            document.getElementById('client-info-preview').innerHTML = `<p><strong>Клиент:</strong> ${fio} (${v.client.phone || ''})</p><p><strong>Месяц:</strong> ${v.assigned_month || 'не указан'}</p>`;
             document.getElementById('master-select').value = v.master_id || '';
             document.getElementById('scheduled-date').value = v.scheduled_date ? v.scheduled_date.split('T')[0] : '';
             document.getElementById('scheduled-time').value = v.scheduled_time || '';

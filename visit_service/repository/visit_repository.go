@@ -42,6 +42,18 @@ func (r *VisitRepository) GetMasterVisitsByDate(date time.Time, masterID int) ([
 	return visits, err
 }
 
+func (r *VisitRepository) GetDispatcherVisits(dispatcherID int) ([]model.Visit, error) {
+	var visits []model.Visit
+
+	err := r.DB.
+		Preload("Client").
+		Preload("Address").
+		Where("deleted_at IS NULL AND dispatcher_id = ?", dispatcherID).
+		Find(&visits).Error
+
+	return visits, err
+}
+
 func (r *VisitRepository) GetVisits() ([]model.Visit, error) {
 	var visits []model.Visit
 

@@ -21,8 +21,9 @@ func NewVisitHandler(s *service.VisitService) *VisitHandler {
 func (h *VisitHandler) GetVisits(ctx *gin.Context) {
 	date := ctx.Query("date")
 	masterID := ctx.Query("master_id")
+	dispatcherID := ctx.Query("dispatcher_id")
 
-	visits, err := h.service.GetVisits(date, masterID)
+	visits, err := h.service.GetVisits(date, masterID, dispatcherID)
 	if err != nil {
 		log.Printf("GetVisits error: %v", err)
 		ctx.Status(http.StatusInternalServerError)

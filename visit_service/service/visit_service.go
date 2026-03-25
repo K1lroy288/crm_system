@@ -76,7 +76,7 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 	return nil
 }
 
-func (s *VisitService) GetVisits(dateStr, masterIDStr string) ([]model.VisitDTO, error) {
+func (s *VisitService) GetVisits(dateStr, masterIDStr, dispatcherIDStr string) ([]model.VisitDTO, error) {
 	visits := []model.Visit{}
 	if dateStr != "" || masterIDStr != "" {
 		date, err := time.Parse("2006-01-02", dateStr)
@@ -92,6 +92,18 @@ func (s *VisitService) GetVisits(dateStr, masterIDStr string) ([]model.VisitDTO,
 		}
 
 		visits, err = s.repository.GetMasterVisitsByDate(date, masterID)
+		if err != nil {
+			log.Printf("error getting visits from DB: %v", err)
+			return []model.VisitDTO{}, err
+		}
+	} else if dispatcherIDStr != "" {
+		dispatcherID, err := strconv.Atoi(dispatcherIDStr)
+		if err != nil {
+			log.Printf("error parse dispatcher id getVisits: %v", err)
+			return []model.VisitDTO{}, err
+		}
+
+		visits, err = s.repository.GetDispatcherVisits(dispatcherID)
 		if err != nil {
 			log.Printf("error getting visits from DB: %v", err)
 			return []model.VisitDTO{}, err
