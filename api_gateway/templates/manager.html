@@ -27,6 +27,10 @@
         .filter-group input, .filter-group select { padding: 9px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; }
         .filter-row-actions { display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0; justify-content: flex-end; align-items: center; }
 
+        /* ПАНЕЛЬ МАССОВЫХ ДЕЙСТВИЙ */
+        #bulk-actions-bar { display: none; background: #E1F5FE; padding: 15px; border-radius: 12px; margin-bottom: 20px; align-items: center; gap: 15px; border: 1px solid #0288D1; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
         /* ТАБЛИЦА */
         .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .table-container { overflow-x: auto; }
@@ -101,6 +105,26 @@
                 </select>
             </div>
             <div class="filter-group">
+                <label>Мастер</label>
+                <select id="f-master" onchange="filterData()">
+                    <option value="all">Все мастера</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Диспетчер</label>
+                <select id="f-dispatcher" onchange="filterData()">
+                    <option value="all">Все диспетчеры</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Месяц назн.</label>
+                <input type="month" id="f-month" onchange="filterData()">
+            </div>
+            <div class="filter-group">
+                <label>Мин. сумма</label>
+                <input type="number" id="f-amount" placeholder="От..." oninput="filterData()">
+            </div>
+            <div class="filter-group">
                 <label>Приоритет</label>
                 <select id="f-vip" onchange="filterData()">
                     <option value="all">Все клиенты</option>
@@ -118,21 +142,38 @@
         </div>
     </div>
 
+    <!-- ПАНЕЛЬ МАССОВЫХ ДЕЙСТВИЙ -->
+    <div id="bulk-actions-bar">
+        <span id="selected-count" style="font-weight: 700; color: #0288D1; margin-right: 10px;">Выбрано: 0</span>
+        
+        <div class="filter-group" style="margin:0">
+            <select id="bulk-master-id" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd;"></select>
+        </div>
+        
+        <div class="filter-group" style="margin:0">
+            <select id="bulk-dispatcher-id" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd;"></select>
+        </div>
+
+        <button class="btn btn-green" onclick="applyBulkUpdate()">Применить к выбранным</button>
+        <button class="btn btn-outline" onclick="clearSelection()" style="border:none; color: #666;">Отмена</button>
+    </div>
+
     <div class="card">
         <div class="table-container">
             <table>
                 <thead>
                     <tr id="table-headers">
+                        <th style="width: 40px; cursor: default;"><input type="checkbox" id="select-all" onclick="toggleAll(this.checked)"></th>
                         <th onclick="setSort('is_vip')" data-field="is_vip">VIP <span class="sort-icon"></span></th>
                         <th onclick="setSort('last_name')" data-field="last_name">Клиент <span class="sort-icon"></span></th>
                         <th onclick="setSort('phone')" data-field="phone">Телефон <span class="sort-icon"></span></th>
                         <th onclick="setSort('city')" data-field="city">Адрес <span class="sort-icon"></span></th>
                         <th onclick="setSort('contract_number')" data-field="contract_number">Договор <span class="sort-icon"></span></th>
-                        <th>Месяц</th>
+                        <th onclick="setSort('assigned_month')" data-field="assigned_month">Месяц <span class="sort-icon"></span></th>
                         <th>Дата визита</th>
-                        <th>Мастер</th>
-                        <th>Диспетчер</th>
-                        <th>Сумма</th>
+                        <th onclick="setSort('master')" data-field="master">Мастер <span class="sort-icon"></span></th>
+                        <th onclick="setSort('dispatcher')" data-field="dispatcher">Диспетчер <span class="sort-icon"></span></th>
+                        <th onclick="setSort('amount')" data-field="amount">Сумма <span class="sort-icon"></span></th>
                         <th>Оборудование</th>
                         <th>Отчет мастера</th>
                         <th onclick="setSort('status')" data-field="status">Статус <span class="sort-icon"></span></th>
@@ -237,13 +278,14 @@
         const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
         let allData = []; 
         let allMasters = [];
-        let allDispatchers = []; // Список диспетчеров
+        let allDispatchers = []; 
         let currentEditId = null;
         let currentVisitData = null; 
         let currentWorkbook = null; 
         let rawExcelRows = []; 
         let sortField = 'is_vip';
         let sortOrder = 'desc';
+        let selectedIds = new Set(); // Множественный выбор
 
         const statusMap = {
             'created': { text: 'Создана', class: 'status-created' },
@@ -284,15 +326,17 @@
                 allMasters = await mRes.json();
                 allDispatchers = await dRes.json();
                 
-                // Обновляем список мастеров в модалке (Фикс undefined)
                 const mSelect = document.getElementById('master_id');
-                mSelect.innerHTML = '<option value="">-- Не назначен --</option>' + 
-                    allMasters.map(m => `<option value="${m.id}">${m.last_name || ''} ${m.first_name || ''}</option>`).join('');
+                const fmSelect = document.getElementById('f-master');
+                const mOptions = allMasters.map(m => `<option value="${m.id}">${m.last_name || ''} ${m.first_name || ''}</option>`).join('');
+                mSelect.innerHTML = '<option value="">-- Не назначен --</option>' + mOptions;
+                fmSelect.innerHTML = '<option value="all">Все мастера</option>' + mOptions;
 
-                // Обновляем список диспетчеров в модалке (Фикс undefined)
                 const dSelect = document.getElementById('dispatcher_id');
-                dSelect.innerHTML = '<option value="">-- Не назначен --</option>' + 
-                    allDispatchers.map(d => `<option value="${d.id}">${d.last_name || ''} ${d.first_name || ''}</option>`).join('');
+                const fdSelect = document.getElementById('f-dispatcher');
+                const dOptions = allDispatchers.map(d => `<option value="${d.id}">${d.last_name || ''} ${d.first_name || ''}</option>`).join('');
+                dSelect.innerHTML = '<option value="">-- Не назначен --</option>' + dOptions;
+                fdSelect.innerHTML = '<option value="all">Все диспетчеры</option>' + dOptions;
                 
                 filterData();
             } catch (e) { console.error(e); }
@@ -309,7 +353,11 @@
                 status: document.getElementById('f-status').value,
                 vip: document.getElementById('f-vip').value,
                 start: document.getElementById('f-date-start').value,
-                end: document.getElementById('f-date-end').value
+                end: document.getElementById('f-date-end').value,
+                master: document.getElementById('f-master').value,
+                dispatcher: document.getElementById('f-dispatcher').value,
+                month: document.getElementById('f-month').value,
+                minAmount: parseFloat(document.getElementById('f-amount').value) || 0
             };
             let filtered = allData.filter(v => {
                 const d = v.contract_date ? v.contract_date.split('T')[0] : '';
@@ -320,7 +368,11 @@
                        v.contract_number.toLowerCase().includes(f.contract) &&
                        (f.status === 'all' || v.status === f.status) &&
                        (f.vip === 'all' || (f.vip === 'vip' && v.client.is_vip) || (f.vip === 'not_vip' && !v.client.is_vip)) &&
-                       (!f.start || d >= f.start) && (!f.end || d <= f.end);
+                       (!f.start || d >= f.start) && (!f.end || d <= f.end) &&
+                       (f.master === 'all' || String(v.master_id) === f.master) &&
+                       (f.dispatcher === 'all' || String(v.dispatcher_id) === f.dispatcher) &&
+                       (!f.month || v.assigned_month === f.month) &&
+                       (v.amount >= f.minAmount);
             });
             document.getElementById('counter').innerText = `Записей: ${filtered.length}`;
             applySort(filtered);
@@ -333,7 +385,17 @@
                 phone: v => v.client.phone,
                 city: v => (v.address.city + v.address.region).toLowerCase(),
                 contract_number: v => (v.contract_number || "").toLowerCase(),
-                status: v => v.status
+                status: v => v.status,
+                assigned_month: v => v.assigned_month || "",
+                amount: v => v.amount || 0,
+                master: v => {
+                    const m = allMasters.find(x => x.id === v.master_id);
+                    return m ? (m.last_name || "").toLowerCase() : "яяя";
+                },
+                dispatcher: v => {
+                    const d = allDispatchers.find(x => x.id === v.dispatcher_id);
+                    return d ? (d.last_name || "").toLowerCase() : "яяя";
+                }
             };
             data.sort((a, b) => {
                 let vA = acc[sortField](a), vB = acc[sortField](b);
@@ -347,6 +409,8 @@
         function renderTable(data) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
+            document.getElementById('select-all').checked = false;
+
             data.forEach(v => {
                 const row = document.createElement('tr');
                 if (v.client.is_vip) row.classList.add('is-vip-row');
@@ -358,25 +422,23 @@
                 if (a.region) addrParts.push(`р-н ${a.region}`);
                 if (a.locality) addrParts.push(`р-н ${a.locality}`);
                 if (a.street) addrParts.push(`ул. ${a.street}`);
-                if (a.house_number) {
-                    let h = `д. ${a.house_number}${a.letter||''}`;
-                    addrParts.push(h);
-                }
+                if (a.house_number) addrParts.push(`д. ${a.house_number}${a.letter||''}`);
                 if (a.building) addrParts.push(`к. ${a.building}`);
                 if (a.appartment_number) addrParts.push(`кв. ${a.appartment_number}`);
 
                 const cDate = v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '';
                 const sDate = v.scheduled_date ? new Date(v.scheduled_date).toLocaleDateString() : '-';
                 
-                // Исправлено: Мастер (Фикс undefined)
                 const master = allMasters.find(m => m.id === v.master_id);
                 const masterName = master ? `${master.last_name || ''} ${master.first_name ? master.first_name[0] + '.' : ''}`.trim() || '-' : '-';
 
-                // Исправлено: Диспетчер (Фикс undefined)
                 const dispatcher = allDispatchers.find(d => d.id === v.dispatcher_id);
                 const dispName = dispatcher ? `${dispatcher.last_name || ''} ${dispatcher.first_name ? dispatcher.first_name[0] + '.' : ''}`.trim() || '-' : '-';
 
+                const isChecked = selectedIds.has(String(v.id)) ? 'checked' : '';
+
                 row.innerHTML = `
+                    <td><input type="checkbox" class="row-checkbox" data-id="${v.id}" ${isChecked} onchange="toggleRow('${v.id}', this.checked)"></td>
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
                     <td><strong>${v.client.last_name || ''}</strong> ${v.client.first_name || ''}</td>
                     <td>${v.client.phone || ''}</td>
@@ -405,7 +467,98 @@
                 `;
                 tbody.appendChild(row);
             });
+            updateBulkBar();
         }
+
+        // --- ЛОГИКА МНОЖЕСТВЕННОГО ВЫБОРА ---
+
+        function toggleRow(id, checked) {
+            if (checked) selectedIds.add(String(id));
+            else selectedIds.delete(String(id));
+            updateBulkBar();
+        }
+
+        function toggleAll(checked) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => {
+                const id = cb.getAttribute('data-id');
+                cb.checked = checked;
+                if (checked) selectedIds.add(String(id));
+                else selectedIds.delete(String(id));
+            });
+            updateBulkBar();
+        }
+
+        function clearSelection() {
+            selectedIds.clear();
+            document.getElementById('select-all').checked = false;
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+            updateBulkBar();
+        }
+
+        function updateBulkBar() {
+            const bar = document.getElementById('bulk-actions-bar');
+            const countSpan = document.getElementById('selected-count');
+            if (selectedIds.size > 0) {
+                bar.style.display = 'flex';
+                countSpan.innerText = `Выбрано: ${selectedIds.size}`;
+                
+                const bMaster = document.getElementById('bulk-master-id');
+                const bDisp = document.getElementById('bulk-dispatcher-id');
+                
+                bMaster.innerHTML = '<option value="">-- Мастер: Без изменений --</option>' + 
+                    allMasters.map(m => `<option value="${m.id}">Мастер: ${m.last_name || ''} ${m.first_name || ''}</option>`).join('');
+                bDisp.innerHTML = '<option value="">-- Диспетчер: Без изменений --</option>' + 
+                    allDispatchers.map(d => `<option value="${d.id}">Диспетчер: ${d.last_name || ''} ${d.first_name || ''}</option>`).join('');
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        async function applyBulkUpdate() {
+            const masterId = document.getElementById('bulk-master-id').value;
+            const dispatcherId = document.getElementById('bulk-dispatcher-id').value;
+            
+            if (!masterId && !dispatcherId) return alert("Выберите мастера или диспетчера");
+            if (!confirm(`Обновить ${selectedIds.size} заявок?`)) return;
+            
+            document.getElementById('main-loader').style.display = 'inline-block';
+            const token = localStorage.getItem('auth_token');
+            
+            try {
+                const updates = Array.from(selectedIds).map(async (id) => {
+                    const currentVisit = allData.find(v => String(v.id) === id);
+                    if (!currentVisit) return;
+
+                    const payload = { ...currentVisit };
+                    if (masterId) {
+                        payload.master_id = parseInt(masterId);
+                        if (payload.status === 'created') payload.status = 'scheduled';
+                    }
+                    if (dispatcherId) {
+                        payload.dispatcher_id = parseInt(dispatcherId);
+                    }
+
+                    return fetch(`${API_URL}/visit/visits/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify(payload)
+                    });
+                });
+
+                await Promise.all(updates);
+                selectedIds.clear();
+                await loadData();
+                alert('Заявки успешно обновлены');
+            } catch (e) {
+                console.error(e);
+                alert('Ошибка при массовом обновлении');
+            } finally {
+                document.getElementById('main-loader').style.display = 'none';
+            }
+        }
+
+        // --- ОСТАЛЬНАЯ ЛОГИКА ---
 
         async function deleteVisit(id) {
             if (!confirm('Вы уверены, что хотите удалить эту заявку?')) return;
@@ -431,6 +584,14 @@
             sortOrder = (sortField === field && sortOrder === 'asc') ? 'desc' : 'asc';
             sortField = field;
             updateSortVisuals();
+            filterData();
+        }
+
+        function resetFilters() {
+            document.querySelectorAll('.filters-grid input, .filters-grid select').forEach(i => {
+                if(i.tagName === 'SELECT') i.value = 'all';
+                else i.value = '';
+            });
             filterData();
         }
 
@@ -510,11 +671,8 @@
             const houseMatch = cleanStr.match(/(?:дом|д\.|участок)\s*(\d+)/i);
             if (houseMatch) res.house = parseInt(houseMatch[1]);
 
-            const buildMatch = cleanStr.match(/(?:строение|стр\.)\s*(\d+)/i);
             const corpMatch = cleanStr.match(/(?:корпус|к\.)\s*(\d+)/i);
-            
-            if (corpMatch) { res.build = parseInt(corpMatch[1]); } 
-            else if (buildMatch) { res.build = parseInt(buildMatch[1]); }
+            if (corpMatch) res.build = parseInt(corpMatch[1]);
 
             const letterMatch = cleanStr.match(/(?:литер|лит\.)\s*([А-ЯЁа-яA-Z])/i);
             if (letterMatch) res.letter = letterMatch[1].trim();
@@ -586,8 +744,6 @@
             rawExcelRows = XLSX.utils.sheet_to_json(currentWorkbook.Sheets[sheetName], { header: 1 });
             showMappingUI();
         }
-
-        document.getElementById('excel-start-row').oninput = showMappingUI;
 
         function showMappingUI() {
             const container = document.getElementById('mapping-container');
@@ -684,7 +840,6 @@
             currentEditId = null; currentVisitData = null;
             document.getElementById('modal-title').innerText = "Новая заявка";
             document.getElementById('visit-form').reset();
-            
             document.getElementById('master_id').value = "";
             document.getElementById('dispatcher_id').value = "";
             document.getElementById('edit-modal').style.display = 'flex';
@@ -694,14 +849,12 @@
             currentEditId = v.id; currentVisitData = v;
             document.getElementById('modal-title').innerText = "Редактировать заявка";
             
-            // Клиент
             document.getElementById('lastname').value = v.client.last_name || '';
             document.getElementById('firstname').value = v.client.first_name || '';
             document.getElementById('surname').value = v.client.surname || '';
             document.getElementById('phone').value = v.client.phone || '';
             document.getElementById('is_vip').checked = v.client.is_vip || false;
             
-            // Адрес
             document.getElementById('region').value = v.address.region || '';
             document.getElementById('city').value = v.address.city || '';
             document.getElementById('locality').value = v.address.locality || '';
@@ -711,16 +864,13 @@
             document.getElementById('building').value = v.address.building || '';
             document.getElementById('appartment').value = v.address.appartment_number || '';
             
-            // Договор
             document.getElementById('contractnumber').value = v.contract_number || '';
             if(v.contract_date) document.getElementById('contractdate').value = v.contract_date.split('T')[0];
             if(v.assigned_month) document.getElementById('assignedmonth').value = v.assigned_month;
             
-            // Мастер и Диспетчер
             document.getElementById('master_id').value = v.master_id || "";
             document.getElementById('dispatcher_id').value = v.dispatcher_id || "";
             
-            // Детали
             if(v.scheduled_date) document.getElementById('scheduled_date').value = v.scheduled_date.split('T')[0];
             else document.getElementById('scheduled_date').value = "";
             
@@ -736,14 +886,12 @@
             event.preventDefault();
             let p = currentEditId ? { ...currentVisitData } : { client: {}, address: {} };
             
-            // Клиент
             p.client.last_name = document.getElementById('lastname').value;
             p.client.first_name = document.getElementById('firstname').value;
             p.client.surname = document.getElementById('surname').value;
             p.client.phone = document.getElementById('phone').value;
             p.client.is_vip = document.getElementById('is_vip').checked;
             
-            // Адрес
             p.address.region = document.getElementById('region').value;
             p.address.city = document.getElementById('city').value;
             p.address.locality = document.getElementById('locality').value;
@@ -753,12 +901,10 @@
             p.address.building = parseInt(document.getElementById('building').value) || null;
             p.address.appartment_number = parseInt(document.getElementById('appartment').value) || null;
             
-            // Договор
             p.contract_number = document.getElementById('contractnumber').value;
             p.contract_date = document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null;
             p.assigned_month = document.getElementById('assignedmonth').value;
             
-            // Детали, Мастер и Диспетчер
             const mIdVal = document.getElementById('master_id').value;
             p.master_id = mIdVal ? parseInt(mIdVal) : null;
 
@@ -771,12 +917,8 @@
             p.equipment_description = document.getElementById('equipment').value;
             p.dispatcher_comment = document.getElementById('comment').value;
 
-            // Логика статуса: если назначен мастер, статус меняется на scheduled
-            if (!currentEditId) {
-                p.status = p.master_id ? "scheduled" : "created";
-            } else if (p.status === 'created' && p.master_id) {
-                p.status = "scheduled";
-            }
+            if (!currentEditId) p.status = p.master_id ? "scheduled" : "created";
+            else if (p.status === 'created' && p.master_id) p.status = "scheduled";
             
             const res = await fetch(currentEditId ? `${API_URL}/visit/visits/${currentEditId}` : `${API_URL}/visit/visits`, {
                 method: currentEditId ? 'PUT' : 'POST',
