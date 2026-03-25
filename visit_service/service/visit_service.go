@@ -61,6 +61,8 @@ func (s *VisitService) CreateVisit(visit *model.VisitDTO) error {
 		Amount:               visit.Amount,
 		Status:               visit.Status,
 		DispatcherComment:    visit.DispatcherComment,
+		DispatcherID:         visit.DispatcherID,
+		MasterReport:         visit.MasterReport,
 
 		Client:  *client,
 		Address: *address,
@@ -170,6 +172,8 @@ func (s *VisitService) GetVisits(dateStr, masterIDStr string) ([]model.VisitDTO,
 			MasterID:             vis.MasterID,
 			Status:               vis.Status,
 			DispatcherComment:    vis.DispatcherComment,
+			MasterReport:         vis.MasterReport,
+			DispatcherID:         vis.DispatcherID,
 		}
 
 		visitsDTO = append(visitsDTO, visDTO)
@@ -228,6 +232,8 @@ func (s *VisitService) UpdateVisit(id uint, visitDTO *model.VisitDTO) error {
 	existingVisit.MasterID = visitDTO.MasterID
 	existingVisit.Status = visitDTO.Status
 	existingVisit.DispatcherComment = visitDTO.DispatcherComment
+	existingVisit.MasterReport = visitDTO.MasterReport
+	existingVisit.DispatcherID = visitDTO.DispatcherID
 
 	return s.repository.UpdateVisit(&existingVisit)
 }

@@ -11,8 +11,9 @@ type Visit struct {
 	gorm.Model
 	ID                   uint `gorm:"primary key; not null"`
 	ClientID             uint `gorm:"not null"`
+	AddressID            uint `gorm:"not null"`
 	MasterID             *uint
-	AddressID            uint       `gorm:"not null"`
+	DispatcherID         *uint
 	ContractNumber       string     `gorm:"size:100;not null"`
 	ContractDate         time.Time  `gorm:"type:DATE;not null"`
 	ScheduledDate        *time.Time `gorm:"type:DATE;"`
@@ -22,6 +23,7 @@ type Visit struct {
 	Amount               decimal.Decimal `gorm:"type:numeric(10,2)"`
 	Status               string          `gorm:"size:20"`
 	DispatcherComment    string
+	MasterReport         string
 
 	Client  Client  `gorm:"foreignKey:ClientID;references:ID"`
 	Address Address `gorm:"foreignKey:AddressID;references:ID"`

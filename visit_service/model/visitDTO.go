@@ -35,6 +35,8 @@ type VisitDTO struct {
 	AssignedMonth        string          `json:"assigned_month"`
 	Amount               decimal.Decimal `json:"amount"`
 	MasterID             *uint           `json:"master_id"`
+	DispatcherID         *uint           `json:"dispatcher_id"`
 	Status               string          `json:"status"`
 	DispatcherComment    string          `json:"dispatcher_comment"`
+	MasterReport         string          `json:"master_report"`
 }

@@ -1,1 +1,0 @@
-ALTER TABLE visits DROP COLOUMN dispatcher_comment;
