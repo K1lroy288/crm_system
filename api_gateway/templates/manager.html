@@ -30,7 +30,7 @@
         /* ТАБЛИЦА */
         .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 1600px; } /* Увеличил ширину для всех колонок */
+        table { width: 100%; border-collapse: collapse; min-width: 1600px; }
         th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
         th { background: #f8f9fa; color: #555; font-weight: 600; cursor: pointer; user-select: none; transition: 0.2s; white-space: nowrap; position: relative; }
         th:hover { background: #eef1f5; color: #007AFF; }
@@ -131,6 +131,7 @@
                         <th>Месяц</th>
                         <th>Дата визита</th>
                         <th>Мастер</th>
+                        <th>Диспетчер</th>
                         <th>Сумма</th>
                         <th>Оборудование</th>
                         <th onclick="setSort('status')" data-field="status">Статус <span class="sort-icon"></span></th>
@@ -182,6 +183,12 @@
                             <option value="">-- Не назначен --</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Диспетчер</label>
+                        <select id="dispatcher_id">
+                            <option value="">-- Не назначен --</option>
+                        </select>
+                    </div>
                 </div>
                 <h3>Детали визита</h3>
                 <div class="form-grid">
@@ -229,6 +236,7 @@
         const API_URL = `${window.location.protocol}//${window.location.hostname}:3425`;
         let allData = []; 
         let allMasters = [];
+        let allDispatchers = []; // Список диспетчеров
         let currentEditId = null;
         let currentVisitData = null; 
         let currentWorkbook = null; 
@@ -266,17 +274,24 @@
             document.getElementById('main-loader').style.display = 'inline-block';
             try {
                 const token = localStorage.getItem('auth_token');
-                const [vRes, mRes] = await Promise.all([
+                const [vRes, mRes, dRes] = await Promise.all([
                     fetch(`${API_URL}/visit/visits`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${API_URL}/user/masters`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    fetch(`${API_URL}/user/masters`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${API_URL}/user/dispatchers`, { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
                 allData = await vRes.json();
                 allMasters = await mRes.json();
+                allDispatchers = await dRes.json();
                 
-                // Обновляем список мастеров в модалке
+                // Обновляем список мастеров в модалке (Фикс undefined)
                 const mSelect = document.getElementById('master_id');
                 mSelect.innerHTML = '<option value="">-- Не назначен --</option>' + 
-                    allMasters.map(m => `<option value="${m.id}">${m.last_name} ${m.first_name}</option>`).join('');
+                    allMasters.map(m => `<option value="${m.id}">${m.last_name || ''} ${m.first_name || ''}</option>`).join('');
+
+                // Обновляем список диспетчеров в модалке (Фикс undefined)
+                const dSelect = document.getElementById('dispatcher_id');
+                dSelect.innerHTML = '<option value="">-- Не назначен --</option>' + 
+                    allDispatchers.map(d => `<option value="${d.id}">${d.last_name || ''} ${d.first_name || ''}</option>`).join('');
                 
                 filterData();
             } catch (e) { console.error(e); }
@@ -313,7 +328,7 @@
         function applySort(data) {
             const acc = {
                 is_vip: v => v.client.is_vip,
-                last_name: v => v.client.last_name.toLowerCase(),
+                last_name: v => (v.client.last_name || "").toLowerCase(),
                 phone: v => v.client.phone,
                 city: v => (v.address.city + v.address.region).toLowerCase(),
                 contract_number: v => (v.contract_number || "").toLowerCase(),
@@ -352,14 +367,18 @@
                 const cDate = v.contract_date ? new Date(v.contract_date).toLocaleDateString() : '';
                 const sDate = v.scheduled_date ? new Date(v.scheduled_date).toLocaleDateString() : '-';
                 
-                // Находим имя мастера
+                // Исправлено: Мастер (Фикс undefined)
                 const master = allMasters.find(m => m.id === v.master_id);
-                const masterName = master ? `${master.last_name} ${master.first_name[0]}.` : '-';
+                const masterName = master ? `${master.last_name || ''} ${master.first_name ? master.first_name[0] + '.' : ''}`.trim() || '-' : '-';
+
+                // Исправлено: Диспетчер (Фикс undefined)
+                const dispatcher = allDispatchers.find(d => d.id === v.dispatcher_id);
+                const dispName = dispatcher ? `${dispatcher.last_name || ''} ${dispatcher.first_name ? dispatcher.first_name[0] + '.' : ''}`.trim() || '-' : '-';
 
                 row.innerHTML = `
                     <td><span class="vip-star">${v.client.is_vip ? '⭐️' : ''}</span></td>
-                    <td><strong>${v.client.last_name}</strong> ${v.client.first_name}</td>
-                    <td>${v.client.phone}</td>
+                    <td><strong>${v.client.last_name || ''}</strong> ${v.client.first_name || ''}</td>
+                    <td>${v.client.phone || ''}</td>
                     <td style="max-width:250px; font-size: 11px; color: #555;">${addrParts.join(', ') || '-'}</td>
                     <td>
                         <div style="font-weight: 600;">${v.contract_number || '-'}</div>
@@ -371,6 +390,7 @@
                         <div style="font-size: 11px; color: #666;">${v.scheduled_time || ''}</div>
                     </td>
                     <td>${masterName}</td>
+                    <td>${dispName}</td>
                     <td>${v.amount ? v.amount.toLocaleString() + ' ₽' : '-'}</td>
                     <td style="max-width:150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${v.equipment_description || ''}">${v.equipment_description || '-'}</td>
                     <td><span class="status-badge ${st.class}">${st.text}</span></td>
@@ -663,14 +683,14 @@
             document.getElementById('modal-title').innerText = "Новая заявка";
             document.getElementById('visit-form').reset();
             
-            // Сбрасываем мастер-селект и другие кастомные поля
             document.getElementById('master_id').value = "";
+            document.getElementById('dispatcher_id').value = "";
             document.getElementById('edit-modal').style.display = 'flex';
         }
 
         function editVisit(v) {
             currentEditId = v.id; currentVisitData = v;
-            document.getElementById('modal-title').innerText = "Редактировать заявку";
+            document.getElementById('modal-title').innerText = "Редактировать заявка";
             
             // Клиент
             document.getElementById('lastname').value = v.client.last_name || '';
@@ -694,8 +714,9 @@
             if(v.contract_date) document.getElementById('contractdate').value = v.contract_date.split('T')[0];
             if(v.assigned_month) document.getElementById('assignedmonth').value = v.assigned_month;
             
-            // Мастер
+            // Мастер и Диспетчер
             document.getElementById('master_id').value = v.master_id || "";
+            document.getElementById('dispatcher_id').value = v.dispatcher_id || "";
             
             // Детали
             if(v.scheduled_date) document.getElementById('scheduled_date').value = v.scheduled_date.split('T')[0];
@@ -735,9 +756,12 @@
             p.contract_date = document.getElementById('contractdate').value ? document.getElementById('contractdate').value + "T00:00:00Z" : null;
             p.assigned_month = document.getElementById('assignedmonth').value;
             
-            // Детали и Мастер (ВАЖНО: parseInt для master_id)
+            // Детали, Мастер и Диспетчер
             const mIdVal = document.getElementById('master_id').value;
             p.master_id = mIdVal ? parseInt(mIdVal) : null;
+
+            const dIdVal = document.getElementById('dispatcher_id').value;
+            p.dispatcher_id = dIdVal ? parseInt(dIdVal) : null;
             
             p.scheduled_date = document.getElementById('scheduled_date').value ? document.getElementById('scheduled_date').value + "T00:00:00Z" : null;
             p.scheduled_time = document.getElementById('scheduled_time').value;

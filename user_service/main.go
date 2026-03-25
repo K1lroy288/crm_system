@@ -61,6 +61,8 @@ func main() {
 
 		api2.GET("/masters", handler.GetMasters)
 
+		api2.GET("/dispatchers", handler.GetDispatchers)
+
 		api2.POST("/mastersByIDs", handler.GetMastersByIDs)
 
 		api2.GET("/:id", handler.GetUserInfo)

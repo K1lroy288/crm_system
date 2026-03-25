@@ -104,12 +104,21 @@ func (h *UserHandler) GetUserByLastname(ctx *gin.Context) {
 }
 
 func (h *UserHandler) GetMasters(ctx *gin.Context) {
-	masters, err := h.service.GetMasters()
+	masters, err := h.service.GetUsersByRole("master")
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 	}
 
 	ctx.JSON(http.StatusOK, masters)
+}
+
+func (h *UserHandler) GetDispatchers(ctx *gin.Context) {
+	dispatchers, err := h.service.GetUsersByRole("dispatcher")
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+	}
+
+	ctx.JSON(http.StatusOK, dispatchers)
 }
 
 func (h *UserHandler) GetMastersByIDs(ctx *gin.Context) {

@@ -78,26 +78,26 @@ func (s *UserService) GetUserByLastname(lastname string) (*model.UserDTO, error)
 	return userDTO, nil
 }
 
-func (s *UserService) GetMasters() ([]model.UserDTO, error) {
-	masters, err := s.repo.GetMasters()
+func (s *UserService) GetUsersByRole(role string) ([]model.UserDTO, error) {
+	users, err := s.repo.GetUsersByRole(role)
 	if err != nil {
 		return nil, err
 	}
 
-	var mastersDTO []model.UserDTO
-	for _, master := range masters {
-		masterDTO := &model.UserDTO{
-			ID:        master.ID,
-			Username:  master.Username,
-			FirstName: master.FirstName,
-			Lastname:  master.LastName,
-			Surname:   master.Surname,
+	var usersDTO []model.UserDTO
+	for _, user := range users {
+		userDTO := &model.UserDTO{
+			ID:        user.ID,
+			Username:  user.Username,
+			FirstName: user.FirstName,
+			Lastname:  user.LastName,
+			Surname:   user.Surname,
 		}
 
-		mastersDTO = append(mastersDTO, *masterDTO)
+		usersDTO = append(usersDTO, *userDTO)
 	}
 
-	return mastersDTO, nil
+	return usersDTO, nil
 }
 
 func (s *UserService) GetMastersByIDs(mastersIDs []uint) ([]model.UserDTO, error) {

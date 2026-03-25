@@ -31,16 +31,16 @@ func (r *UserRepository) GetUserByLastname(lastname string) (model.User, error) 
 	return user, err
 }
 
-func (r *UserRepository) GetMasters() ([]model.User, error) {
-	var masters []model.User
+func (r *UserRepository) GetUsersByRole(role string) ([]model.User, error) {
+	var users []model.User
 	err := r.DB.Raw(`
 		SELECT u.* FROM users u
 		INNER JOIN user_roles ur ON u.id = ur.user_id
 		INNER JOIN roles r ON ur.role_id = r.id
 		WHERE r.role_name = ? AND u.deleted_at IS NULL
-	`, "master").Scan(&masters).Error
+	`, role).Scan(&users).Error
 
-	return masters, err
+	return users, err
 }
 
 func (r *UserRepository) GetMastersByIDs(masterIDs []uint) ([]model.User, error) {
